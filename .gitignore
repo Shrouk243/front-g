@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Builds
+dist/
+build/
+public/build/
+backend/public/build/
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.hostinger.example
+
+# Local databases
+*.sqlite
+*.sqlite-*
+*.sqlite.broken
+
+# Laravel runtime/cache
+backend/storage/*.key
+backend/storage/logs/*.log
+backend/storage/framework/cache/data/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+!backend/bootstrap/cache/.gitignore
+!backend/storage/**/.gitignore
+
+# Test/cache/editor files
+.phpunit.result.cache
+.phpunit.cache/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.zed/
+.fleet/
+*.local
