@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
@@ -10,7 +11,8 @@ import type { BackendVital } from "../../types";
 type StatusKey = "normal" | "elevated" | "critical";
 
 export function VitalBPPage() {
-  const { colors, t } = useApp();
+  const { colors, t, language } = useApp();
+  const isAR = language === "AR";
   const [items, setItems] = React.useState<BackendVital[]>([]);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
@@ -25,7 +27,7 @@ export function VitalBPPage() {
 
   const latest = items[0];
   const readings = items.slice(0, 8).reverse().map((item, index) => ({
-    time: item.measured_at ? new Date(item.measured_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`,
+    time: item.measured_at ? new Date(item.measured_at).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`,
     sys: item.systolic ?? 0,
     dia: item.diastolic ?? 0,
   }));
@@ -34,15 +36,25 @@ export function VitalBPPage() {
   const statusStyle: Record<StatusKey, { color: string; bg: string; label: string }> = {
     normal: { color: "#16A34A", bg: "#DCFCE7", label: t("common_normal") },
     elevated: { color: "#B45309", bg: "#FEF3C7", label: t("common_elevated") },
-    critical: { color: "#DC2626", bg: "#FEE2E2", label: t("common_high") },
+    critical: { color: "#DC2626", bg: "#FEE2E2", label: t("common_critical") },
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto" }}>
-      <ManualReadingDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSaved={loadReadings} initialType="blood_pressure" allowTypeSelection={false} />
+    <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto", direction: isAR ? "rtl" : "ltr" }}>
+      <ManualReadingDialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+        onSaved={loadReadings} 
+        initialType="blood_pressure" 
+        allowMulti={false} 
+      />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
-        <Link to="/dashboard" style={{ width: 42, height: 42, borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.cardBg, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+        <Link to="/dashboard" style={{ 
+          width: 42, height: 42, borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.cardBg, 
+          display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
+          transform: isAR ? "rotate(180deg)" : "none"
+        }}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 6L8 10L12 14" stroke={colors.textPrimary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </Link>
         <div style={{ flex: 1 }}>
@@ -50,7 +62,7 @@ export function VitalBPPage() {
           <p style={{ fontSize: 13, color: colors.textMuted, margin: 0, fontWeight: 500 }}>{t("vitals_bpUnit")}</p>
         </div>
         <button type="button" onClick={() => setDialogOpen(true)} style={{ height: 42, borderRadius: 10, border: "none", background: "#0F2A5C", color: "white", padding: "0 14px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-        {t("vitals_addReading")}
+          {t("vitals_addReading")}
         </button>
       </div>
 
@@ -69,18 +81,20 @@ export function VitalBPPage() {
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 52, fontWeight: 900, color: colors.textPrimary, letterSpacing: "-0.04em", lineHeight: 1 }}>{latest.systolic}</span>
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: "#F59E0B" }}>SYS mmHg</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#F59E0B" }}>SYS</span>
                       <div style={{ width: 20, height: 1.5, background: colors.textMuted, margin: "4px 0" }} />
                       <span style={{ fontSize: 14, fontWeight: 700, color: "#1A6BCC" }}>DIA {latest.diastolic}</span>
                     </div>
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: statusStyle[latest.status].bg, borderRadius: 10, padding: "5px 12px" }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: statusStyle[latest.status].color }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: statusStyle[latest.status].color }}>{statusStyle[latest.status].label}</span>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: statusStyle[latest.status as StatusKey]?.bg, borderRadius: 10, padding: "5px 12px" }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: statusStyle[latest.status as StatusKey]?.color }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: statusStyle[latest.status as StatusKey]?.color }}>{statusStyle[latest.status as StatusKey]?.label}</span>
                   </div>
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>Latest reading: {formatVitalTimestamp(latest.measured_at)}</p>
+              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>
+                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatVitalTimestamp(latest.measured_at)}
+              </p>
             </div>
           </div>
 
@@ -88,7 +102,9 @@ export function VitalBPPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div>
                 <span style={{ fontSize: 16, fontWeight: 800, color: colors.textPrimary, display: "block" }}>{t("vitals_todaysTrend")}</span>
-                <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Latest backend readings for systolic and diastolic values</span>
+                <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>
+                    {isAR ? "أحدث قراءات ضغط الدم" : "Latest backend readings for systolic and diastolic values"}
+                </span>
               </div>
             </div>
             <div style={{ background: colors.cardBg, borderRadius: 20, padding: "16px 14px 10px", border: `1px solid ${colors.borderLight}` }}>
@@ -112,7 +128,7 @@ export function VitalBPPage() {
           <h2 style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("vitals_todaysLog")}</h2>
           <div style={{ background: colors.cardBg, borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 8px rgba(15,31,61,0.06)" }}>
             {log.map((entry, index) => {
-              const s = statusStyle[entry.status];
+              const s = statusStyle[entry.status as StatusKey];
               return (
                 <div key={entry.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: index < log.length - 1 ? `1px solid ${colors.borderLight}` : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

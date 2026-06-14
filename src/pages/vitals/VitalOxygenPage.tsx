@@ -1,14 +1,16 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
 import { HealthBarChart } from "../../components/charts/HealthBarChart";
 import { fetchVitals } from "../../lib/api";
-import { formatVitalTimestamp, getVitalNumericValue } from "../../lib/health-data";
+import { getVitalNumericValue } from "../../lib/health-data";
 import { ManualReadingDialog } from "../../components/ManualReadingDialog";
 import type { BackendVital } from "../../types";
 
 export function VitalOxygenPage() {
-  const { colors, t } = useApp();
+  const { colors, t, language } = useApp();
+  const isAR = language === "AR";
   const [items, setItems] = React.useState<BackendVital[]>([]);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
@@ -22,25 +24,63 @@ export function VitalOxygenPage() {
   }, [loadReadings]);
 
   const latest = items[0];
-  const readings = items.slice(0, 8).reverse().map((item, index) => ({
-    time: item.measured_at ? new Date(item.measured_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`,
-    value: getVitalNumericValue(item),
-  }));
+
+  const readings = items.slice(0, 8).reverse().map((item, index) => {
+    let formattedTime = `#${index + 1}`;
+    if (item.measured_at) {
+      formattedTime = new Date(item.measured_at).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+    }
+    return {
+      time: formattedTime,
+      value: getVitalNumericValue(item),
+    };
+  });
+
+  const formatLatestDate = (dateString: string | undefined) => {
+    if (!dateString) return "";
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleString(isAR ? "ar-EG" : "en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
 
   return (
-    <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto" }}>
-      <ManualReadingDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSaved={loadReadings} initialType="oxygen" allowTypeSelection={false} />
+    <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto", direction: isAR ? "rtl" : "ltr" }}>
+      <ManualReadingDialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+        onSaved={loadReadings} 
+        initialType="oxygen" 
+        allowMulti={false} 
+      />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
-        <Link to="/dashboard" style={{ width: 42, height: 42, borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.cardBg, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+        <Link to="/dashboard" style={{ 
+          width: 42, 
+          height: 42, 
+          borderRadius: 12, 
+          border: `1.5px solid ${colors.border}`, 
+          background: colors.cardBg, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center", 
+          textDecoration: "none",
+          transform: isAR ? "rotate(180deg)" : "none" 
+        }}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12 6L8 10L12 14" stroke={colors.textPrimary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </Link>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>{t("vital_oxygen")}</h1>
-          <p style={{ fontSize: 13, color: colors.textMuted, margin: 0, fontWeight: 500 }}>{t("vitals_oxygenUnit")}</p>
+          <p style={{ fontSize: 13, color: colors.textMuted, margin: 0, fontWeight: 500 }}>{t("vitals_oxygenUnit") || "%"}</p>
         </div>
         <button type="button" onClick={() => setDialogOpen(true)} style={{ height: 42, borderRadius: 10, border: "none", background: "#0F2A5C", color: "white", padding: "0 14px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-       {t("vitals_addReading")}
+          {t("vitals_addReading")}
         </button>
       </div>
 
@@ -58,14 +98,18 @@ export function VitalOxygenPage() {
                   <span style={{ fontSize: 18, color: "#0DC9B1", fontWeight: 700 }}>%</span>
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>Latest reading: {formatVitalTimestamp(latest.measured_at)}</p>
+              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>
+                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatLatestDate(latest.measured_at)}
+              </p>
             </div>
           </div>
 
           <div style={{ background: `linear-gradient(180deg, ${colors.cardBg} 0%, ${colors.pageBg} 180%)`, borderRadius: 24, padding: "22px", marginBottom: 14, boxShadow: "0 14px 32px rgba(2,6,23,0.14)", border: `1px solid ${colors.border}` }}>
             <div style={{ marginBottom: 14 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: colors.textPrimary, display: "block", marginBottom: 4 }}>{t("vitals_todaysReadings")}</span>
-              <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>Stable oxygen values from backend readings</span>
+              <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>
+                {isAR ? "أحدث قراءات نسبة الأكسجين المسجلة" : "Latest backend oxygen readings"}
+              </span>
             </div>
             <div style={{ background: colors.cardBg, borderRadius: 20, padding: "16px 14px 10px", border: `1px solid ${colors.borderLight}` }}>
               <HealthBarChart

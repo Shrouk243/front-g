@@ -1,3 +1,4 @@
+
 import {
   Bar,
   BarChart,
@@ -85,6 +86,7 @@ function evaluateMetricState(
   return "normal";
 }
 
+// التعديل هنا: تم إعطاء الأولوية للـ Critical والـ Warning قبل أي شيء آخر
 function getBarFill<T extends ChartDatum>(
   datum: T,
   datumIndex: number,

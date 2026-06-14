@@ -1,4 +1,5 @@
 
+
 import React from "react";
 import { useApp } from "../contexts/AppContext";
 import { fetchVitals } from "../lib/api";
@@ -6,12 +7,6 @@ import { getVitalNumericValue, groupHistoryRows } from "../lib/health-data";
 import type { BackendVital, VitalReading } from "../types";
 
 type StatusKey = VitalReading["status"];
-
-const statusColors: Record<StatusKey, { color: string; bg: string; label: string }> = {
-  normal: { color: "#16A34A", bg: "#DCFCE7", label: "Normal" },
-  elevated: { color: "#B45309", bg: "#FEF3C7", label: "Elevated" },
-  critical: { color: "#DC2626", bg: "#FEE2E2", label: "High" },
-};
 
 export function HistoryPage() {
   const { colors, t, isRTL } = useApp();
@@ -26,6 +21,12 @@ export function HistoryPage() {
   const hrValues = items.filter((item) => item.type === "heart_rate");
   const oxygenValues = items.filter((item) => item.type === "oxygen");
   const glucoseValues = items.filter((item) => item.type === "blood_sugar");
+
+  const statusColors: Record<StatusKey, { color: string; bg: string; label: string }> = {
+    normal: { color: "#16A34A", bg: "#DCFCE7", label: t("common_normal") || "Normal" },
+    elevated: { color: "#B45309", bg: "#FEF3C7", label: t("common_elevated") || "Elevated" },
+    critical: { color: "#DC2626", bg: "#FEE2E2", label: t("common_critical") || "High" },
+  };
 
   const averages = {
     bp: bpValues.length ? `${Math.round(bpValues.reduce((sum, item) => sum + (item.systolic ?? 0), 0) / bpValues.length)}/${Math.round(bpValues.reduce((sum, item) => sum + (item.diastolic ?? 0), 0) / bpValues.length)}` : "—",
@@ -90,19 +91,19 @@ export function HistoryPage() {
                 className="vitals-values-grid"
               >
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>BP</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_bp")}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.bp}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>HR</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_hr")}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.hr}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>SpO₂</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_oxygen")}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.spo2}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>Glucose</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_glucose")}</span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.glucose}</span>
                 </div>
               </div>

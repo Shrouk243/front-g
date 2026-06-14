@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import React from "react";
 import { useApp } from "../contexts/AppContext";
@@ -82,7 +83,8 @@ function Row({ icon, label, value, onClick, children }: RowProps) {
 }
 
 export function ProfilePage() {
-  const { colors, language, setLanguage, t } = useApp();
+  const { colors, language, setLanguage, t, theme, toggleTheme } = useApp();
+
   const [profile, setProfile] = React.useState<UserProfile>(() => getStoredProfile());
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [draft, setDraft] = React.useState<UserProfile>(() => getStoredProfile());
@@ -390,173 +392,6 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Phone Number</p>
-            <div style={{ display: "grid", gridTemplateColumns: "88px minmax(0, 1fr)", gap: 8 }}>
-              <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 12px", height: 48, display: "flex", alignItems: "center", position: "relative" }}>
-                <select
-                  value={draft.phoneCountryCode}
-                  onChange={(e) => handleDraftChange("phoneCountryCode", e.target.value)}
-                  style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 600, appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: 18 }}
-                >
-                  {countryCodes.map((code) => <option key={code} value={code}>{code}</option>)}
-                </select>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: "absolute", right: 12, pointerEvents: "none" }}>
-                  <path d="M3.5 5.5L7 9L10.5 5.5" stroke="#B0C4DE" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center", minWidth: 0 }}>
-                <input
-                  value={draft.phoneNumber}
-                  onChange={(e) => handleDraftChange("phoneNumber", e.target.value)}
-                  placeholder="5X XXX XXXX"
-                  style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", minWidth: 0, fontFamily: "inherit", fontWeight: 500 }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Gender</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-              {genderOptions.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => handleDraftChange("gender", option)}
-                  style={{
-                    height: 44,
-                    borderRadius: 12,
-                    border: `1.5px solid ${draft.gender === option ? "#1A6BCC" : colors.border}`,
-                    background: draft.gender === option ? colors.navActiveBg : colors.inputBg,
-                    color: draft.gender === option ? colors.accentBlue : colors.textSecondary,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Date of Birth</p>
-            <div style={{ display: "grid", gridTemplateColumns: "88px minmax(0, 1fr) 96px", gap: 8 }}>
-              {[
-                { value: draft.dobDay, key: "dobDay" as const, placeholder: "Day", options: days },
-                { value: draft.dobMonth, key: "dobMonth" as const, placeholder: "Month", options: months },
-                { value: draft.dobYear, key: "dobYear" as const, placeholder: "Year", options: years },
-              ].map((field) => (
-                <div key={field.key} style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 12px", height: 48, display: "flex", alignItems: "center", position: "relative", minWidth: 0 }}>
-                  <select
-                    value={field.value}
-                    onChange={(e) => handleDraftChange(field.key, e.target.value)}
-                    style={{ border: "none", background: "transparent", fontSize: 15, color: field.value ? colors.textPrimary : colors.textMuted, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 500, appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: 18 }}
-                  >
-                    <option value="" disabled>{field.placeholder}</option>
-                    {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                  </select>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: "absolute", right: 12, pointerEvents: "none" }}>
-                    <path d="M3.5 5.5L7 9L10.5 5.5" stroke="#B0C4DE" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
-            {[
-              { label: "Height", unit: "cm", value: String(draft.height || ""), key: "height" as const },
-              { label: "Weight", unit: "kg", value: String(draft.weight || ""), key: "weight" as const },
-            ].map((field) => (
-              <div key={field.key} style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>{field.label}</p>
-                <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box" }}>
-                  <input
-                    type="number"
-                    value={field.value}
-                    onChange={(e) => handleDraftChange(field.key, Number(e.target.value))}
-                    placeholder="—"
-                    style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", flex: 1, minWidth: 0, width: "100%", fontFamily: "inherit", fontWeight: 500 }}
-                  />
-                  <span style={{ fontSize: 13, color: colors.textMuted, fontWeight: 600 }}>{field.unit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Blood Type</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {bloodTypes.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleDraftChange("bloodType", type)}
-                  style={{
-                    width: 52,
-                    height: 42,
-                    borderRadius: 10,
-                    border: `1.5px solid ${draft.bloodType === type ? "#1A6BCC" : colors.border}`,
-                    background: draft.bloodType === type ? colors.navActiveBg : colors.inputBg,
-                    color: draft.bloodType === type ? colors.accentBlue : colors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Hospital Name</p>
-            <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center" }}>
-              <input
-                value={draft.hospitalName}
-                onChange={(e) => handleDraftChange("hospitalName", e.target.value)}
-                placeholder="Enter hospital name"
-                style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 500 }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Medical Conditions</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {medicalConditionOptions.map((condition) => {
-                const isSelected = draft.medicalConditions.includes(condition);
-                return (
-                  <button
-                    key={condition}
-                    type="button"
-                    onClick={() => toggleMedicalCondition(condition)}
-                    style={{
-                      minHeight: 38,
-                      padding: "8px 12px",
-                      borderRadius: 12,
-                      border: `1.5px solid ${isSelected ? "#1A6BCC" : colors.border}`,
-                      background: isSelected ? colors.navActiveBg : colors.inputBg,
-                      color: isSelected ? colors.accentBlue : colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {condition}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
@@ -626,9 +461,61 @@ export function ProfilePage() {
       </div>
 
       <div style={{ background: colors.cardBg, borderRadius: 18, padding: "4px 18px", marginBottom: 14, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "14px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("profile_appSettings")}</p>
+        <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "14px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          {t("profile_appSettings")}
+        </p>
 
-        <div style={{ borderBottom: `1px solid ${colors.divider}` }}>
+        <div style={{ borderBottom: `1px solid ${colors.divider}`, padding: "14px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
+              {t("profile_language")}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => setLanguage("EN")} 
+                style={{ padding: "6px 12px", borderRadius: 8, border: language === "EN" ? `1.5px solid ${colors.accentBlue}` : `1.5px solid ${colors.border}`, background: language === "EN" ? colors.navActiveBg : colors.cardBg, color: colors.textPrimary, cursor: "pointer", fontWeight: 600 }}
+              >
+                English
+              </button>
+              <button 
+                onClick={() => setLanguage("AR")} 
+                style={{ padding: "6px 12px", borderRadius: 8, border: language === "AR" ? `1.5px solid ${colors.accentBlue}` : `1.5px solid ${colors.border}`, background: language === "AR" ? colors.navActiveBg : colors.cardBg, color: colors.textPrimary, cursor: "pointer", fontWeight: 600 }}
+              >
+                العربية
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ borderBottom: telegramOpen ? `1px solid ${colors.divider}` : "none", padding: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
+            {language === "AR" ? "مظهر التطبيق" : "App Theme"}
+          </span>
+          <button
+            onClick={toggleTheme}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 10,
+              border: `1.5px solid ${colors.border}`,
+              background: colors.inputBg,
+              color: colors.accentBlue,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: "inherit",
+            }}
+          >
+            {theme === "dark" 
+              ? (language === "AR" ? "☀️ فاتح" : "☀️ Light") 
+              : (language === "AR" ? "🌙 داكن" : "🌙 Dark")
+            }
+          </button>
+        </div>
+
+        <div style={{ borderBottom: "none" }}>
           <Row
             icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C6.79 2 5 3.79 5 6V11L3.5 13H14.5L13 11V6C13 3.79 11.21 2 9 2Z" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M7.5 14C7.5 14.83 8.17 15.5 9 15.5C9.83 15.5 10.5 14.83 10.5 14" stroke="#1A6BCC" strokeWidth="1.4" /></svg>}
             label="Telegram Alerts"
@@ -638,144 +525,25 @@ export function ProfilePage() {
         </div>
 
         {telegramOpen && (
-          <div style={{ borderBottom: `1px solid ${colors.divider}`, padding: "0 0 16px" }}>
-            <div style={{ background: colors.inputBg, borderRadius: 16, border: `1px solid ${colors.border}`, padding: 16, marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                <div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, margin: "0 0 4px" }}>Connection Status</p>
-                  <p style={{ fontSize: 13, color: colors.textMuted, margin: 0 }}>
-                    {telegramStatus.connected
-                      ? (telegramStatus.telegram_username ? `Connected to @${telegramStatus.telegram_username}` : "Connected")
-                      : "Not connected"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleConnectTelegram}
-                  disabled={telegramBusy === "connect"}
-                  style={{ height: 40, borderRadius: 10, border: "none", background: "#0F2A5C", color: "white", padding: "0 14px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  {telegramBusy === "connect" ? "Opening..." : "Connect Telegram"}
-                </button>
-              </div>
-
-              <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
-                {[
-                  { key: "critical_alerts", label: "Critical alerts" },
-                  { key: "recommendations", label: "Recommendations after new readings" },
-                  { key: "daily_summary", label: "Daily summary" },
-                ].map((preference) => (
-                  <label key={preference.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, fontSize: 14, color: colors.textPrimary, fontWeight: 600 }}>
-                    <span>{preference.label}</span>
-                    <input
-                      type="checkbox"
-                      checked={telegramStatus.preferences[preference.key as keyof typeof telegramStatus.preferences]}
-                      onChange={(event) => handleTelegramPreferenceChange(preference.key as "critical_alerts" | "recommendations" | "daily_summary", event.target.checked)}
-                      disabled={Boolean(telegramBusy)}
-                    />
-                  </label>
-                ))}
-              </div>
-
-              {telegramNotice && (
-                <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", color: "#047857", borderRadius: 12, padding: "10px 12px", marginBottom: 12, fontSize: 13, fontWeight: 600 }}>
-                  {telegramNotice}
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={handleTelegramTestMessage}
-                  disabled={!telegramStatus.connected || telegramBusy === "test"}
-                  style={{ height: 40, borderRadius: 10, border: `1.5px solid ${colors.border}`, background: colors.cardBg, color: colors.textPrimary, padding: "0 14px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  {telegramBusy === "test" ? "Sending..." : "Send Test Message"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDisconnectTelegram}
-                  disabled={!telegramStatus.connected || telegramBusy === "disconnect"}
-                  style={{ height: 40, borderRadius: 10, border: "1px solid #FECACA", background: "#FEF2F2", color: "#DC2626", padding: "0 14px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-                >
+          <div style={{ padding: "16px 0" }}>
+            <div style={{ background: colors.inputBg, borderRadius: 16, border: `1px solid ${colors.border}`, padding: 16 }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, margin: "0 0 4px" }}>Connection Status</p>
+              <p style={{ fontSize: 13, color: colors.textMuted, margin: "0 0 12px" }}>
+                {telegramStatus.connected ? "Your profile is successfully linked to Telegram." : "Link your profile to receive automated health updates."}
+              </p>
+              {telegramStatus.connected ? (
+                <button onClick={handleDisconnectTelegram} disabled={telegramBusy !== null} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#DC2626", color: "white", cursor: "pointer", fontWeight: 600 }}>
                   {telegramBusy === "disconnect" ? "Disconnecting..." : "Disconnect Telegram"}
                 </button>
-              </div>
+              ) : (
+                <button onClick={handleConnectTelegram} disabled={telegramBusy !== null} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: colors.accentBlue, color: "white", cursor: "pointer", fontWeight: 600 }}>
+                  {telegramBusy === "connect" ? "Connecting..." : "Connect Telegram"}
+                </button>
+              )}
             </div>
           </div>
         )}
-
-        <div style={{ borderBottom: `1px solid ${colors.divider}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0" }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: colors.inputBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <circle cx="9" cy="9" r="7" stroke="#1A6BCC" strokeWidth="1.4" />
-                <path d="M9 2C9 2 6.5 5.5 6.5 9C6.5 12.5 9 16 9 16" stroke="#1A6BCC" strokeWidth="1.4" />
-                <path d="M9 2C9 2 11.5 5.5 11.5 9C11.5 12.5 9 16 9 16" stroke="#1A6BCC" strokeWidth="1.4" />
-                <path d="M2 9H16" stroke="#1A6BCC" strokeWidth="1.4" />
-              </svg>
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary, margin: "0 0 6px" }}>{t("profile_language")}</p>
-              <div style={{ display: "flex", gap: 6 }}>
-                {(["EN", "AR"] as Language[]).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => setLanguage(lang)}
-                    style={{
-                      padding: "5px 14px",
-                      borderRadius: 8,
-                      border: `1.5px solid ${language === lang ? colors.accentBlue : colors.border}`,
-                      background: language === lang ? colors.navActiveBg : colors.cardBg,
-                      color: language === lang ? colors.accentBlue : colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Row
-          icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3.5" y="8" width="11" height="8" rx="1.5" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M5.5 8V5.5C5.5 3.57 7.07 2 9 2C10.93 2 12.5 3.57 12.5 5.5V8" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round" /><circle cx="9" cy="12.5" r="1.2" fill="#1A6BCC" /></svg>}
-          label={t("profile_privacy")}
-        />
       </div>
-
-      <Link to="/login" style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        width: "100%",
-        height: 50,
-        borderRadius: 14,
-        border: "1.5px solid #FEE2E2",
-        background: "#FFF5F5",
-        color: "#EF4444",
-        fontSize: 15,
-        fontWeight: 700,
-        cursor: "pointer",
-        textDecoration: "none",
-        marginTop: 8,
-      }}
-        onClick={() => {
-          clearAuthToken();
-          clearStoredProfile();
-        }}
-      >
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M10.5 3H13C13.55 3 14 3.45 14 4V14C14 14.55 13.55 15 13 15H10.5M7 12L4 9L7 6M4 9H12" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {t("profile_signOut")}
-      </Link>
     </div>
   );
 }
