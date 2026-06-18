@@ -1,25 +1,41 @@
+
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema } from "../schemas/auth.schema";
 import { Link, useNavigate } from "react-router-dom";
 import React from "react";
+import { z } from "zod";
 import { getApiErrorMessage, login, setAuthToken } from "../lib/api";
 import { mergeBackendProfile } from "../lib/health-data";
 import { saveStoredProfile } from "../lib/profile-storage";
 
+type LoginFormData = z.infer<typeof loginSchema>;
+
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function onSubmit(data: LoginFormData) {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await login(email, password);
+      const response = await login(data.email, data.password);
+
       setAuthToken(response.access_token);
+
       saveStoredProfile(mergeBackendProfile(response.user));
+
       navigate("/dashboard");
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, "Unable to sign in."));
@@ -39,6 +55,7 @@ export function LoginPage() {
       padding: "24px",
     }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
+        {/* Logo Section */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
           <div style={{
             width: 44,
@@ -57,6 +74,7 @@ export function LoginPage() {
           <span style={{ fontSize: 22, fontWeight: 800, color: "#0F1F3D", letterSpacing: "-0.02em" }}>HealthSync</span>
         </div>
 
+        {/* Card Content */}
         <div style={{
           background: "white",
           borderRadius: 24,
@@ -71,7 +89,10 @@ export function LoginPage() {
             Sign in to your HealthSync account.
           </p>
 
-          <form onSubmit={handleSubmit}>
+          {/* Form Start */}
+          <form onSubmit={handleSubmit(onSubmit)}>
+            
+            {/* Email Field */}
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: "#8BA3C0", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Email</p>
               <div style={{
@@ -89,16 +110,20 @@ export function LoginPage() {
                   <path d="M2 5.5L9 10L16 5.5" stroke="#B0C4DE" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
                 <input
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="your@email.com"
+                  {...register("email")}
+                  placeholder="your@email.com" 
                   type="email"
-                  required
                   style={{ border: "none", background: "transparent", fontSize: 15, color: "#0F1F3D", outline: "none", flex: 1, fontFamily: "inherit", fontWeight: 500 }}
                 />
               </div>
+              {errors.email && (
+                <p style={{ color: "#DC2626", fontSize: 12, marginTop: 6 }}>
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
+            {/* Password Field */}
             <div style={{ marginBottom: 10 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: "#8BA3C0", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Password</p>
               <div style={{
@@ -118,23 +143,29 @@ export function LoginPage() {
                 </svg>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  {...register("password")}
                   placeholder="••••••••••"
-                  required
                   style={{ border: "none", background: "transparent", fontSize: 15, color: "#0F1F3D", outline: "none", flex: 1, fontFamily: "inherit", fontWeight: 500 }}
                 />
               </div>
+              {errors.password && (
+                <p style={{ color: "#DC2626", fontSize: 12, marginTop: 6 }}>
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
+            {/* Forgot Password */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
               <Link to="/reset-password" style={{ fontSize: 13, color: "#1A6BCC", fontWeight: 600, textDecoration: "none" }}>
                 Forgot password?
               </Link>
             </div>
 
+            {/* API Error Message */}
             {error && <p style={{ color: "#DC2626", fontSize: 13, margin: "0 0 16px" }}>{error}</p>}
 
+            {/* Submit Button */}
             <button type="submit" disabled={loading} style={{
               display: "flex",
               alignItems: "center",
@@ -156,12 +187,14 @@ export function LoginPage() {
             </button>
           </form>
 
+          {/* Divider */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{ flex: 1, height: 1, background: "#E4EBF5" }} />
             <span style={{ fontSize: 12, color: "#B0C4DE", fontWeight: 600, letterSpacing: "0.04em" }}>OR</span>
             <div style={{ flex: 1, height: 1, background: "#E4EBF5" }} />
           </div>
 
+          {/* Social Logins */}
           <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
             {["Google", "Apple ID"].map((label) => (
               <button key={label} style={{
@@ -184,6 +217,7 @@ export function LoginPage() {
             ))}
           </div>
 
+          {/* Sign Up Link */}
           <p style={{ textAlign: "center", fontSize: 14, color: "#8BA3C0", margin: 0, fontWeight: 500 }}>
             New to HealthSync?{" "}
             <Link to="/signup" style={{ color: "#1A6BCC", fontWeight: 700, textDecoration: "none" }}>Create account</Link>

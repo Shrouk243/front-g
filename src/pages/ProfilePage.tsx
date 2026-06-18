@@ -1,4 +1,5 @@
 
+
 import { Link } from "react-router-dom";
 import React from "react";
 import { useApp } from "../contexts/AppContext";
@@ -446,17 +447,10 @@ export function ProfilePage() {
 
       <div style={{ background: colors.cardBg, borderRadius: 18, padding: "4px 18px", marginBottom: 14, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "14px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("profile_personalDetails")}</p>
-        <div style={{ borderBottom: `1px solid ${colors.divider}` }}>
-          <Row
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="12" rx="2" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M5.5 2V5M12.5 2V5M2 7.5H16" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round" /></svg>}
-            label={t("profile_dob")}
-            value={profile.dateOfBirth || "—"}
-          />
-        </div>
         <Row
-          icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 5.5C3 4.67 3.67 4 4.5 4H13.5C14.33 4 15 4.67 15 5.5V12.5C15 13.33 14.33 14 13.5 14H4.5C3.67 14 3 13.33 3 12.5V5.5Z" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M6 7H12M6 10H10" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round" /></svg>}
-          label={t("profile_doctor")}
-          value={profile.hospitalName || "—"}
+          icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="12" rx="2" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M5.5 2V5M12.5 2V5M2 7.5H16" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round" /></svg>}
+          label={t("profile_dob")}
+          value={profile.dateOfBirth || "—"}
         />
       </div>
 
@@ -517,7 +511,7 @@ export function ProfilePage() {
 
         <div style={{ borderBottom: "none" }}>
           <Row
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C6.79 2 5 3.79 5 6V11L3.5 13H14.5L13 11V6C13 3.79 11.21 2 9 2Z" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M7.5 14C7.5 14.83 8.17 15.5 9 15.5C9.83 15.5 10.5 14.83 10.5 14" stroke="#1A6BCC" strokeWidth="1.4" /></svg>}
+            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C6.79 2 5 3.79 5 6V11L3.5 13H14.5L13 11V6C13 3.79 11.21 2 9 2Z" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M7.5 14C7.5 14.83 8.17 15.5 9 15.5GG" stroke="#1A6BCC" strokeWidth="1.4" /></svg>}
             label="Telegram Alerts"
             value={telegramStatus.connected ? (telegramStatus.telegram_username ? `Connected to @${telegramStatus.telegram_username}` : "Connected") : "Not connected"}
             onClick={() => setTelegramOpen((current) => !current)}

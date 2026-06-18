@@ -1,4 +1,5 @@
 
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../contexts/AppContext";
@@ -24,9 +25,9 @@ function getDashboardThresholds(label: string): HealthChartThresholds | undefine
     case "Blood Oxygen": case "Blood Oxygen · Today": case "الأكسجين": case "أكسجين الدم":
       return { direction: "low", warning: 95, critical: 92 };
     case "Blood Pressure": case "Blood Pressure · Today": case "ضغط الدم":
-      return { direction: "high", warning: 130, critical: 145 };
+      return { direction: "high", warning: 120, critical: 140 };
     case "Blood Glucose": case "Blood Glucose · Today": case "سكر الدم":
-      return { direction: "high", warning: 120, critical: 150 };
+      return { direction: "high", warning: 100, critical: 140 };
     default:
       return undefined;
   }
@@ -48,7 +49,7 @@ function VitalCard({ label, value, unit, trend, trendDir, status, statusColor, s
   }];
 
   const translatedLabel = t(`vital_${vitalType === "blood_sugar" ? "glucose" : vitalType === "oxygen" ? "oxygen" : vitalType === "heart_rate" ? "hr" : "bp"}`) || label;
-  const translatedStatus = t(`common_${status}`) || status;
+  const translatedStatus = status === "elevated" ? (t("common_elevated") || "Elevated") : (t(`common_${status}`) || status);
 
   return (
     <Link to={linkTo} style={{ textDecoration: "none" }}>
@@ -80,22 +81,80 @@ function VitalCard({ label, value, unit, trend, trendDir, status, statusColor, s
   );
 }
 
-function getTrendDirection(vital: BackendVital) { return vital.status === "critical" || vital.status === "elevated" ? "up" : "flat"; }
+function getTrendDirection(status: string) { 
+  return status === "critical" || status === "elevated" ? "up" : "flat"; 
+}
+
+function calculateVitalStatus(vital: BackendVital) {
+  const val = getVitalNumericValue(vital);
+
+  if (vital.type === "blood_pressure") {
+    const sys = vital.systolic ?? 0;
+    const dia = vital.diastolic ?? 0;
+    
+    if (sys >= 140 || dia >= 90) {
+      return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+    }
+    
+    if ((sys >= 120 && sys < 140) || (dia >= 80 && dia < 90)) {
+      return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
+    }
+    
+    return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
+  }
+
+  if (vital.type === "blood_sugar") {
+    if (val < 70) return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+    if (val <= 99) return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
+    if (val <= 140) return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
+    return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+  }
+
+  if (vital.type === "oxygen") {
+    if (val >= 95) return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
+    if (val >= 92) return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
+    return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+  }
+
+  if (vital.status === "critical") return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+  if (vital.status === "elevated" || vital.status === "warning") return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
+  return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
+}
 
 function buildVitalCard(vital: BackendVital, recentVitals: BackendVital[]): VitalCardData & { vitalType: string } {
   const scoped = recentVitals.filter((item) => item.type === vital.type).slice(0, 7).reverse().map((item, index) => {
     const timestamp = item.measured_at ? new Date(item.measured_at) : null;
-    return { time: timestamp ? timestamp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : `#${index + 1}`, fullTime: timestamp ? timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`, value: getVitalNumericValue(item) };
+    return { 
+      time: timestamp ? timestamp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : `#${index + 1}`, 
+      fullTime: timestamp ? timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`, 
+      value: getVitalNumericValue(item) 
+    };
   });
+
   const lastMeasured = formatVitalTimestamp(vital.measured_at);
-  const statusColor = vital.status === "critical" ? "#DC2626" : vital.status === "elevated" ? "#B45309" : "#16A34A";
-  const statusBg = vital.status === "critical" ? "#FEE2E2" : vital.status === "elevated" ? "#FEF3C7" : "#DCFCE7";
+  const calculated = calculateVitalStatus(vital);
   const accentColor = vital.type === "blood_pressure" ? "#F59E0B" : vital.type === "heart_rate" ? "#EF4444" : vital.type === "oxygen" ? "#0DC9B1" : "#3B82F6";
-  return { vitalType: vital.type, label: getVitalLabel(vital.type), value: vital.type === "blood_pressure" && vital.systolic !== null && vital.diastolic !== null ? `${vital.systolic}/${vital.diastolic}` : vital.value?.toString() || "0", unit: getVitalUnit(vital.type), trend: `Latest reading on ${lastMeasured}`, trendDir: getTrendDirection(vital), status: vital.status, statusColor, statusBg, accentColor, chartData: scoped.length ? scoped : [{ time: "Now", fullTime: "Now", value: getVitalNumericValue(vital) }], linkTo: vital.type === "blood_pressure" ? "/vitals/bp" : vital.type === "heart_rate" ? "/vitals/heart-rate" : vital.type === "oxygen" ? "/vitals/oxygen" : "/vitals/glucose" };
+
+  return { 
+    vitalType: vital.type, 
+    label: getVitalLabel(vital.type), 
+    value: vital.type === "blood_pressure" && vital.systolic !== null && vital.diastolic !== null 
+      ? `${vital.systolic}/${vital.diastolic}` 
+      : vital.value?.toString() || "0", 
+    unit: getVitalUnit(vital.type), 
+    trend: `Latest reading on ${lastMeasured}`, 
+    trendDir: getTrendDirection(calculated.status), 
+    status: calculated.status, 
+    statusColor: calculated.color, 
+    statusBg: calculated.bg, 
+    accentColor, 
+    chartData: scoped.length ? scoped : [{ time: "Now", fullTime: "Now", value: getVitalNumericValue(vital) }], 
+    linkTo: vital.type === "blood_pressure" ? "/vitals/bp" : vital.type === "heart_rate" ? "/vitals/heart-rate" : vital.type === "oxygen" ? "/vitals/oxygen" : "/vitals/glucose" 
+  };
 }
 
 export function DashboardPage() {
-  const { colors, t, language, profile } = useApp(); 
+  const { colors, t, language } = useApp(); 
   const [currentVitals, setCurrentVitals] = React.useState<BackendVital[]>([]);
   const [recentVitals, setRecentVitals] = React.useState<BackendVital[]>([]);
   const [healthScore, setHealthScore] = React.useState<number | null>(null);
@@ -104,27 +163,43 @@ export function DashboardPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [userName, setUserName] = React.useState<string>(() => getStoredProfile().name?.trim().split(" ")[0] || "User");
 
-  React.useEffect(() => {
-    if (profile?.healthScore !== undefined && profile.healthScore !== null) {
-      setHealthScore(profile.healthScore);
-    }
-  }, [profile]);
-
   const loadDashboard = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetchDashboard();
-      setCurrentVitals(response.current_vitals || []);
-      setRecentVitals(response.recent_vitals || []);
-      const score = response.analysis_preview?.health_score ?? response.latest_analysis?.health_score ?? null;
-      const message = response.analysis_preview?.health_message || response.latest_analysis?.health_message || response.analysis_preview?.recommendation || "";
+      
+      const current = response.current_vitals || [];
+      const recent = response.recent_vitals || [];
+      
+      setCurrentVitals(current);
+      setRecentVitals(recent);
+
+      const hasAnyData = current.length > 0 || recent.length > 0;
+      let score: number | null = null;
+      let message = "";
+
+      if (hasAnyData) {
+        score = response.analysis_preview?.health_score 
+             ?? response.latest_analysis?.health_score 
+             ?? null;
+        
+        message = response.analysis_preview?.health_message 
+               || response.latest_analysis?.health_message 
+               || response.analysis_preview?.recommendation 
+               || "";
+      }
+
       setHealthScore(score);
       setHealthMessage(message);
+
       const currentProfile = getStoredProfile();
       setUserName(currentProfile.name?.trim().split(" ")[0] || "User");
       saveStoredProfile({ ...currentProfile, healthScore: score });
+
     } catch (error) {
       console.error("Failed to load dashboard:", error);
+      setHealthScore(null);
+      setHealthMessage("");
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +210,9 @@ export function DashboardPage() {
     await loadDashboard();
   }, [loadDashboard]);
 
-  React.useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  React.useEffect(() => { 
+    loadDashboard(); 
+  }, [loadDashboard]);
 
   const vitalCards = currentVitals.map((vital) => buildVitalCard(vital, recentVitals));
   const displayScore = healthScore ?? 0;
@@ -144,50 +221,104 @@ export function DashboardPage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}>
-      <ManualReadingDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSaved={handleReadingSaved} allowMulti={true} />
+      <ManualReadingDialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+        onSaved={handleReadingSaved} 
+        allowMulti={true} 
+      />
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <p style={{ margin: 0, fontSize: 13, color: colors.textMuted, fontWeight: 500 }}>{new Date().toLocaleDateString(isAR ? "ar-EG" : "en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-          <h1 style={{ margin: "4px 0 0", fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.03em" }}>{greetingText}</h1>
+          <p style={{ margin: 0, fontSize: 13, color: colors.textMuted, fontWeight: 500 }}>
+            {new Date().toLocaleDateString(isAR ? "ar-EG" : "en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+          <h1 style={{ margin: "4px 0 0", fontSize: 28, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.03em" }}>
+            {greetingText}
+          </h1>
         </div>
         <Link to="/profile" style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg, #1A6BCC, #0DC9B1)", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="white" strokeWidth="1.6" /><path d="M3.5 17C3.5 13.96 6.46 11.5 10 11.5C13.54 11.5 16.5 13.96 16.5 17" stroke="white" strokeWidth="1.6" strokeLinecap="round" /></svg>
         </Link>
       </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16, marginBottom: 24 }}>
         <div style={{ background: "#0F2A5C", borderRadius: 20, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", right: -20, top: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(13,201,177,0.12)" }} />
           <div style={{ flex: 1, position: "relative", zIndex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} /><span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>{t("dash_overallStatus")}</span></div>
-            {isLoading ? <div style={{ height: 52, background: "rgba(255,255,255,0.1)", borderRadius: 12, width: "75%" }} /> : <p style={{ color: "white", fontSize: 18, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.02em", lineHeight: 1.4 }}>{healthMessage || (isAR ? "صحتك جيدة" : "Your health looks good")}</p>}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                {t("dash_overallStatus")}
+              </span>
+            </div>
+
+            {isLoading ? (
+              <div style={{ height: 52, background: "rgba(255,255,255,0.1)", borderRadius: 12, width: "75%" }} />
+            ) : healthScore === null || currentVitals.length === 0 ? (
+              <p style={{ color: "white", fontSize: 18, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.02em", lineHeight: 1.4 }}>
+                {isAR ? "ابدأ بتسجيل أول قراءة" : "Start by logging your first reading"}
+              </p>
+            ) : (
+              <p style={{ color: "white", fontSize: 18, fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.02em", lineHeight: 1.4 }}>
+                {healthMessage || (isAR ? "صحتك جيدة" : "Your health looks good")}
+              </p>
+            )}
           </div>
+
           <div style={{ textAlign: "right", position: "relative", zIndex: 1, flexShrink: 0 }}>
-            <div style={{ fontSize: 40, fontWeight: 900, color: "white", letterSpacing: "-0.04em", lineHeight: 1 }}>{displayScore}</div>
+            <div style={{ fontSize: 40, fontWeight: 900, color: "white", letterSpacing: "-0.04em", lineHeight: 1 }}>
+              {displayScore}
+            </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>{t("dash_healthScore")}</div>
           </div>
         </div>
+
         <div style={{ background: colors.cardBg, borderRadius: 20, padding: "18px 20px", display: "flex", gap: 14, alignItems: "flex-start", border: `1.5px solid ${colors.border}`, boxShadow: "0 2px 8px rgba(15,31,61,0.04)" }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: colors.navActiveBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><svg width="20" height="20" viewBox="0 0 18 18" fill="none"><path d="M9 1.5L10.5 7H16L11.5 10.5L13.5 16L9 12.5L4.5 16L6.5 10.5L2 7H7.5L9 1.5Z" stroke="#1A6BCC" strokeWidth="1.4" strokeLinejoin="round" /></svg></div>
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: colors.navActiveBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 18 18" fill="none"><path d="M9 1.5L10.5 7H16L11.5 10.5L13.5 16L9 12.5L4.5 16L6.5 10.5L2 7H7.5L9 1.5Z" stroke="#1A6BCC" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+          </div>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}><span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{t("dash_aiInsight")}</span><span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500 }}>{isAR ? "تجريبي" : "Supportive"}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{t("dash_aiInsight")}</span>
+              <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500 }}>{isAR ? "تجريبي" : "Supportive"}</span>
+            </div>
             <p style={{ fontSize: 14, color: colors.textSecondary, margin: "0 0 10px", lineHeight: 1.55 }}>{t("dash_aiInsightBody")}</p>
             <Link to="/ai-analysis" style={{ fontSize: 13, color: colors.accentBlue, fontWeight: 700, textDecoration: "none" }}>{t("dash_viewFullAnalysis")}</Link>
           </div>
         </div>
       </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <h2 style={{ fontSize: 17, fontWeight: 700, color: colors.textPrimary, margin: 0, letterSpacing: "-0.01em" }}>{t("dash_vitalSigns")}</h2>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>{vitalCards.map((card) => <VitalCard key={card.label} {...card} />)}</div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16, marginBottom: 24 }}>
+        {vitalCards.map((card) => <VitalCard key={card.label} {...card} />)}
+      </div>
+
       <h2 style={{ fontSize: 17, fontWeight: 700, color: colors.textPrimary, margin: "0 0 14px", letterSpacing: "-0.01em" }}>{t("dash_quickActions")}</h2>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-        <button type="button" onClick={() => setDialogOpen(true)} style={{ flex: "1 1 140px", padding: "14px 10px", borderRadius: 14, background: "#EBF3FF", color: "#1A6BCC", fontSize: 14, fontWeight: 700, cursor: "pointer", border: "none", fontFamily: "inherit" }}>{isAR ? "تسجيل قراءة" : "Log Reading"}</button>
+        <button 
+          type="button" 
+          onClick={() => setDialogOpen(true)} 
+          style={{ flex: "1 1 140px", padding: "14px 10px", borderRadius: 14, background: "#EBF3FF", color: "#1A6BCC", fontSize: 14, fontWeight: 700, cursor: "pointer", border: "none", fontFamily: "inherit" }}
+        >
+          {isAR ? "تسجيل قراءة" : "Log Reading"}
+        </button>
+
         {[
           { labelKey: "dash_viewHistory" as const, color: "#0DC9B1", bg: "#E6FAF8", path: "/history" },
           { labelKey: "dash_askAI" as const, color: "#8B5CF6", bg: "#EDE9FE", path: "/ai-analysis" },
           { labelKey: "dash_viewAlerts" as const, color: "#EF4444", bg: "#FEE2E2", path: "/alerts" },
         ].map((action) => (
-          <Link key={action.path} to={action.path} style={{ flex: "1 1 140px", padding: "14px 10px", borderRadius: 14, background: action.bg, color: action.color, fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>{t(action.labelKey)}</Link>
+          <Link 
+            key={action.path} 
+            to={action.path} 
+            style={{ flex: "1 1 140px", padding: "14px 10px", borderRadius: 14, background: action.bg, color: action.color, fontSize: 14, fontWeight: 700, textDecoration: "none", textAlign: "center" }}
+          >
+            {t(action.labelKey)}
+          </Link>
         ))}
       </div>
     </div>

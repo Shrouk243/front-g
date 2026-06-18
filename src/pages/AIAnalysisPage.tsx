@@ -1,5 +1,9 @@
 
 
+
+
+
+
 import React, { useState, useEffect } from "react";
 import { useApp } from "../contexts/AppContext";
 import { getStoredProfile } from "../lib/profile-storage";
@@ -18,8 +22,10 @@ export function AIAnalysisPage() {
   
   const [userScore, setUserScore] = useState<number>(() => {
     const stored = getStoredProfile();
-    return stored?.healthScore || 75;
+    // إجبار الاسكور على 0 لو المستخدم جديد (مفيش قياسات)
+    return stored?.healthScore ?? 0;
   }); 
+
   const [cards, setCards] = useState<AIAnalysisCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -43,13 +49,15 @@ export function AIAnalysisPage() {
         const data = await response.json();
         
         if (data && data.cards) {
-          setUserScore(data.healthScore || userScore);
+          // استخدام الاسكور من الباك إذا موجود، وإلا نستخدم المخزن (الذي يمكن أن يكون 0)
+          const scoreFromBackend = data.healthScore ?? getStoredProfile()?.healthScore ?? 0;
+          setUserScore(scoreFromBackend);
           setCards(data.cards);
         } else {
           loadFallbackData();
         }
       } catch (err) {
-        console.warn("جاري تشغيل البيانات المتطابقة مع التصميم الحقيقي للمشروع:", err);
+        console.warn("جاري تشغيل البيانات المتطابقة مع التصميم الحقيقي:", err);
         loadFallbackData(); 
       } finally {
         setLoading(false);
@@ -58,65 +66,80 @@ export function AIAnalysisPage() {
 
     function loadFallbackData() {
       const currentProfile = getStoredProfile();
-      const actualScore = currentProfile?.healthScore || userScore;
+      // المنطق الجديد: 0 لو مفيش قياسات
+      const actualScore = currentProfile?.healthScore ?? 0;
       
       setUserScore(actualScore);
 
-      const isScoreLow = actualScore < 70;
+      const isScoreLow = actualScore < 70 && actualScore > 0;
 
       setCards([
         {
           key: "cardio",
           title: isAR ? "صحة القلب والأوعية الدموية" : "Cardiovascular Risk",
-          level: isScoreLow 
-            ? (isAR ? "مرتفع نسيباً" : "Elevated") 
-            : (isAR ? "مستقر" : "Stable"),
-          pct: isScoreLow ? 55 : 85,
-          insights: isAR ? [
-            isScoreLow ? "قراءات ضغط الدم مرتفعة بنسبة 40% هذا الأسبوع" : "مؤشرات ضغط الدم تقع في النطاق الآمن تماماً",
-            "معدل تغير نبضات القلب جيد ومستقر",
-            isAR ? "ينصح بالمشي اليومي لمدة 20 دقيقة لتنشيط الدورة الدموية" : "استمر على مستواك البدني الحالي"
-          ] : [
-            isScoreLow ? "BP readings elevated 40% of this week" : "BP readings within safe parameters",
-            "Heart rate variability is good",
-            isScoreLow ? "Consider daily 20-min walks" : "Maintain your current physical activity level"
-          ],
+          level: actualScore === 0 
+            ? (isAR ? "لا توجد بيانات" : "No Data") 
+            : isScoreLow 
+              ? (isAR ? "مرتفع نسيباً" : "Elevated") 
+              : (isAR ? "مستقر" : "Stable"),
+          pct: actualScore === 0 ? 0 : isScoreLow ? 55 : 85,
+          insights: actualScore === 0 ? 
+            (isAR ? [
+              "لم يتم تسجيل أي قياسات بعد",
+              "سجل أول قراءة للحصول على تحليل دقيق"
+            ] : [
+              "No readings have been logged yet",
+              "Log your first reading to get accurate analysis"
+            ]) :
+            isAR ? [
+              isScoreLow ? "قراءات ضغط الدم مرتفعة بنسبة 40% هذا الأسبوع" : "مؤشرات ضغط الدم تقع في النطاق الآمن تماماً",
+              "معدل تغير نبضات القلب جيد ومستقر",
+              isAR ? "ينصح بالمشي اليومي لمدة 20 دقيقة لتنشيط الدورة الدموية" : "استمر على مستواك البدني الحالي"
+            ] : [
+              isScoreLow ? "BP readings elevated 40% of this week" : "BP readings within safe parameters",
+              "Heart rate variability is good",
+              isScoreLow ? "Consider daily 20-min walks" : "Maintain your current physical activity level"
+            ],
         },
         {
           key: "metabolic",
           title: isAR ? "الصحة التمثيلية (الأيضية)" : "Metabolic Health",
-          level: isAR ? "مستقر" : "Stable",
-          pct: actualScore > 80 ? 88 : 68,
-          insights: isAR ? [
-            "مستويات سكر الدم تقع في النطاق المستهدف تماماً",
-            "معدل السكر التراكمي المقدر HbA1c بنسبة ممتازة",
-            "القراءات الصباحية هي الأكثر استقراراً وانتظاماً"
-          ] : [
-            "Blood glucose within target range",
-            "HbA1c estimated level is optimal",
-            "Morning readings most stable"
-          ],
+          level: actualScore === 0 ? (isAR ? "لا توجد بيانات" : "No Data") : (isAR ? "مستقر" : "Stable"),
+          pct: actualScore === 0 ? 0 : actualScore > 80 ? 88 : 68,
+          insights: actualScore === 0 ? 
+            (isAR ? ["سجل قياسات السكر للحصول على تحليل"] : ["Log glucose readings to analyze"]) :
+            isAR ? [
+              "مستويات سكر الدم تقع في النطاق المستهدف تماماً",
+              "معدل السكر التراكمي المقدر HbA1c بنسبة ممتازة",
+              "القراءات الصباحية هي الأكثر استقراراً وانتظاماً"
+            ] : [
+              "Blood glucose within target range",
+              "HbA1c estimated level is optimal",
+              "Morning readings most stable"
+            ],
         },
         {
           key: "respiratory",
           title: isAR ? "حالة الجهاز التنفسي" : "Respiratory Status",
-          level: isAR ? "ممتاز" : "Excellent",
-          pct: 96,
-          insights: isAR ? [
-            "نسبة أكسجين الدم SpO₂ مستقرة تماماً فوق 96%",
-            "لم يتم رصد أي أنماط تنفسية غير طبيعية أو مقلقة",
-            "جودة وكفاءة عملية التنفس ممتازة جداً"
-          ] : [
-            "SpO2 consistently above 96%",
-            "No concerning patterns detected",
-            "Breathing quality is excellent"
-          ],
+          level: actualScore === 0 ? (isAR ? "لا توجد بيانات" : "No Data") : (isAR ? "ممتاز" : "Excellent"),
+          pct: actualScore === 0 ? 0 : 96,
+          insights: actualScore === 0 ? 
+            (isAR ? ["سجل قياسات الأكسجين"] : ["Log oxygen readings"]) :
+            isAR ? [
+              "نسبة أكسجين الدم SpO₂ مستقرة تماماً فوق 96%",
+              "لم يتم رصد أي أنماط تنفسية غير طبيعية أو مقلقة",
+              "جودة وكفاءة عملية التنفس ممتازة جداً"
+            ] : [
+              "SpO2 consistently above 96%",
+              "No concerning patterns detected",
+              "Breathing quality is excellent"
+            ],
         }
       ]);
     }
 
     getBackendAnalysis();
-  }, [language, userScore]); 
+  }, [language]); // ← أزلنا userScore من الـ dependency عشان نتجنب لوب
 
   const getLevelStyles = (level: string) => {
     const l = level ? level.toLowerCase() : "";
@@ -128,6 +151,8 @@ export function AIAnalysisPage() {
     }
     return { color: "#DC2626", bg: "#FEE2E2" };
   };
+
+  // باقي الكود (getIcon, loading, return) بدون تغيير كبير...
 
   const getIcon = (key: string, color: string) => {
     if (key === "cardio") {
@@ -218,7 +243,10 @@ export function AIAnalysisPage() {
           <div style={{ flex: 1, minWidth: 200 }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: colors.textPrimary, margin: "0 0 8px" }}>{t("ai_scoreLabel")}</h2>
             <p style={{ fontSize: 14, color: colors.textSecondary, margin: "0 0 14px", lineHeight: 1.55 }}>
-              {t("ai_scoreDesc")}
+              {userScore === 0 
+                ? (isAR ? "سجل أول قراءة للحصول على تقييم صحي" : "Log your first reading to get your health score")
+                : t("ai_scoreDesc")
+              }
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <div style={{ padding: "5px 12px", borderRadius: 8, background: "#FEF3C7", fontSize: 12, fontWeight: 700, color: "#B45309" }}>{t("ai_needsAttention")}</div>
@@ -227,6 +255,7 @@ export function AIAnalysisPage() {
           </div>
         </div>
 
+        {/* باقي الـ JSX (الـ Recommendation Card + Detailed Analysis) بدون تغيير كبير */}
         <div style={{
           background: "linear-gradient(135deg, #0F2A5C 0%, #1A6BCC 100%)",
           borderRadius: 20,
@@ -237,7 +266,11 @@ export function AIAnalysisPage() {
           <div style={{ position: "absolute", top: -20, right: isAR ? "auto" : -20, left: isAR ? -20 : "auto", width: 100, height: 100, borderRadius: "50%", background: "rgba(13,201,177,0.2)" }} />
           <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, margin: "0 0 8px", letterSpacing: "0.05em", textTransform: "uppercase", position: "relative", zIndex: 1 }}>{t("ai_topRec")}</p>
           
-          {userScore < 70 ? (
+          {userScore === 0 ? (
+            <p style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "0 0 6px", position: "relative", zIndex: 1 }}>
+              {isAR ? "ابدأ بتسجيل قياساتك الحيوية" : "Start by logging your vital readings"}
+            </p>
+          ) : userScore < 70 ? (
             <>
               <p style={{ color: "white", fontSize: 16, fontWeight: 700, margin: "0 0 6px", position: "relative", zIndex: 1 }}>{t("ai_recTitle")}</p>
               <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, margin: 0, lineHeight: 1.55, position: "relative", zIndex: 1 }}>
@@ -250,7 +283,7 @@ export function AIAnalysisPage() {
                 {isAR ? "صحتك ممتازة، حافظ على هذا الأداء المستقر!" : "Great job! Keep up this stable performance!"}
               </p>
               <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, margin: 0, lineHeight: 1.55, position: "relative", zIndex: 1 }}>
-                {isAR ? "جميع مؤشراتك الحيوية تقع ضمن النطاقات الطبيعية والآمنة تماماً. استمر في اتباع نظامك الغذائي والبدني الحالي ونم جيداً." : "All your vital signs are completely within the normal and safe ranges. Continue following your current lifestyle, hydration, and sleep routines."}
+                {isAR ? "جميع مؤشراتك الحيوية تقع ضمن النطاقات الطبيعية والآمنة تماماً." : "All your vital signs are completely within the normal and safe ranges."}
               </p>
             </>
           )}

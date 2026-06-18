@@ -1,4 +1,6 @@
 
+
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
@@ -105,11 +107,14 @@ export function VitalGlucosePage() {
                 {isAR ? "أحدث قراءات سكر الدم المسجلة" : "Most recent backend glucose readings"}
               </span>
             </div>
-            <div style={{ background: colors.cardBg, borderRadius: 20, padding: "16px 14px 10px", border: `1px solid ${colors.borderLight}` }}>
+            {/* تم تصغير حجم الشارت هنا */}
+            <div style={{ background: colors.cardBg, borderRadius: 20, padding: "12px 14px 8px", border: `1px solid ${colors.borderLight}` }}>
               <HealthBarChart
                 data={readings}
                 series={[{ key: "value", label: t("vital_glucose"), color: "#3B82F6", latestColor: "#0EA5E9", warningColor: "#F59E0B", criticalColor: "#EF4444", thresholds: { direction: "high", warning: 140, critical: 155 } }]}
-                height={230}
+                height={130}
+                compact={true}
+                barSize={16}
                 unit="mg/dL"
                 yDomain={[60, 220]}
                 tooltipLabel={t("vitals_todaysPattern")}
