@@ -1,5 +1,3 @@
-
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
@@ -17,7 +15,7 @@ export function VitalOxygenPage() {
 
   const loadReadings = React.useCallback(async () => {
     const response = await fetchVitals("oxygen");
-    setItems(response.items);
+    setItems(response.items || []);
   }, []);
 
   React.useEffect(() => {
@@ -26,10 +24,11 @@ export function VitalOxygenPage() {
 
   const latest = items[0];
 
-  const readings = items.slice(0, 8).reverse().map((item, index) => {
+  const readings = items.slice(0, 8).reverse().map((item: any, index) => {
     let formattedTime = `#${index + 1}`;
-    if (item.measured_at) {
-      formattedTime = new Date(item.measured_at).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
+    if (item && (item.measured_at || item.created_at || item.date)) {
+      const dateValue = item.measured_at || item.created_at || item.date;
+      formattedTime = new Date(dateValue).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
         hour: "2-digit", 
         minute: "2-digit" 
       });
@@ -40,9 +39,11 @@ export function VitalOxygenPage() {
     };
   });
 
-  const formatLatestDate = (dateString: string | undefined) => {
-    if (!dateString) return "";
-    const dateObj = new Date(dateString);
+  const formatLatestDate = (item: any) => {
+    if (!item) return "";
+    const dateValue = item.measured_at || item.created_at || item.date;
+    if (!dateValue) return "";
+    const dateObj = new Date(dateValue);
     return dateObj.toLocaleString(isAR ? "ar-EG" : "en-US", {
       month: "short",
       day: "numeric",
@@ -58,7 +59,8 @@ export function VitalOxygenPage() {
     return { text: "Critical", color: "#EF4444", bg: "#FEE2E2" };
   };
 
-  const status = latest ? getStatusDetails(latest.value) : { text: "Normal", color: "#0DC9B1", bg: "#E6FBF8" };
+  const currentOxygenValue = latest ? getVitalNumericValue(latest) : 98;
+  const status = getStatusDetails(currentOxygenValue);
 
   return (
     <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto", direction: isAR ? "rtl" : "ltr" }}>
@@ -67,7 +69,6 @@ export function VitalOxygenPage() {
         onClose={() => setDialogOpen(false)} 
         onSaved={loadReadings} 
         initialType="oxygen" 
-        allowMulti={false}
       />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
@@ -111,7 +112,7 @@ export function VitalOxygenPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, lineHeight: 1 }}>
                   <span style={{ fontSize: 48, fontWeight: 800, color: colors.textPrimary, letterSpacing: "-0.02em" }}>
-                    {latest.value}
+                    {getVitalNumericValue(latest)}
                   </span>
                   <span style={{ fontSize: 20, fontWeight: 700, color: "#0DC9B1" }}>%</span>
                 </div>
@@ -125,7 +126,7 @@ export function VitalOxygenPage() {
             </div>
 
             <p style={{ fontSize: 12, color: colors.textMuted, margin: 0, borderTop: `1px solid ${colors.borderLight}`, paddingTop: 12, fontWeight: 500 }}>
-              {isAR ? "آخر قراءة تم تسجيلها: " : "Latest reading: "} {formatLatestDate(latest.measured_at)}
+              {isAR ? "آخر قراءة تم تسجيلها: " : "Latest reading: "} {formatLatestDate(latest)}
             </p>
           </div>
 

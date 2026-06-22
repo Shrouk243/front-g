@@ -1,5 +1,3 @@
-
-
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -8,6 +6,15 @@ import { z } from "zod";
 import { buildFullName, calculateAge, formatDateOfBirth, saveStoredProfile } from "../lib/profile-storage";
 import { profileConditionsToBackend, profileGenderToBackend } from "../lib/health-data";
 import { getApiErrorMessage, register, setAuthToken } from "../lib/api";
+// ─── Country phone rules ───────────────────────────────────────────────────────
+const COUNTRY_PHONE_RULES: Record<string, { min: number; max: number }> = {
+  "+966": { min: 9, max: 9 },
+  "+20":  { min: 11, max: 11 },
+  "+971": { min: 9, max: 9 },
+  "+965": { min: 8, max: 8 },
+  "+973": { min: 8, max: 8 },
+  "+974": { min: 8, max: 8 },
+};
 // ─── Zod Schema ────────────────────────────────────────────────────────────────
 const namePattern = /^[\p{L}\s'\-]+$/u;
 const step1Schema = z
@@ -36,7 +43,7 @@ const step1Schema = z
       .string()
       .trim()
       .min(1, "Phone number is required.")
-      .regex(/^\d{6,15}$/, "Please enter a valid phone number using digits only."),
+      .regex(/^\d+$/, "Phone number must contain digits only."),
     password: z
       .string()
       .min(1, "Password is required.")
@@ -44,6 +51,26 @@ const step1Schema = z
     confirmPassword: z
       .string()
       .min(1, "Please confirm your password."),
+  })
+  .superRefine((data, ctx) => {
+    const rule = COUNTRY_PHONE_RULES[data.phoneCountryCode];
+    if (rule && data.phoneNumber.length > 0) {
+      if (data.phoneNumber.length < rule.min || data.phoneNumber.length > rule.max) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: rule.min === rule.max
+            ? `Phone number must be exactly ${rule.min} digits for ${data.phoneCountryCode}.`
+            : `Phone number must be between ${rule.min} and ${rule.max} digits for ${data.phoneCountryCode}.`,
+          path: ["phoneNumber"],
+        });
+      } else if (/^(.)\1+$/.test(data.phoneNumber)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Phone number cannot be all repeated digits.",
+          path: ["phoneNumber"],
+        });
+      }
+    }
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -61,7 +88,6 @@ type Step1FormValues = z.infer<typeof step1Schema>;
 export function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  // Step 2 – optional health profile fields (no strict validation needed)
   const [gender, setGender] = useState("Male");
   const [dobDay, setDobDay] = useState("");
   const [dobMonth, setDobMonth] = useState("");
@@ -73,7 +99,6 @@ export function SignupPage() {
   const [medicalConditions, setMedicalConditions] = useState<string[]>(["No Known Condition"]);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  // ─── react-hook-form + Zod ───────────────────────────────────────────────────
   const {
     register: field,
     handleSubmit,
@@ -94,7 +119,6 @@ export function SignupPage() {
     },
   });
   const phoneCountryCode = watch("phoneCountryCode");
-  // ─── Constants ───────────────────────────────────────────────────────────────
   const bloodTypes = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
   const countryCodes = ["+966", "+20", "+971", "+965", "+973", "+974"];
   const genderOptions = ["Male", "Female", "Other"];
@@ -107,7 +131,6 @@ export function SignupPage() {
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
   const years = Array.from({ length: 80 }, (_, i) => String(new Date().getFullYear() - 18 - i));
-  // ─── Handlers ────────────────────────────────────────────────────────────────
   function onStep1Valid() {
     setApiError(null);
     setStep(2);
@@ -173,7 +196,6 @@ export function SignupPage() {
       setSubmitting(false);
     }
   }
-  // ─── Shared styles ───────────────────────────────────────────────────────────
   const inputWrap = (hasError?: boolean): React.CSSProperties => ({
     background: hasError ? "#FFF5F5" : "#F8FAFD",
     border: `1.5px solid ${hasError ? "#FCA5A5" : "#E4EBF5"}`,
@@ -192,7 +214,6 @@ export function SignupPage() {
   const fieldErrorStyle: React.CSSProperties = {
     color: "#DC2626", fontSize: 12, margin: "5px 0 0", fontWeight: 500,
   };
-  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div style={{
       minHeight: "100vh", background: "#FAFBFE",
@@ -200,7 +221,6 @@ export function SignupPage() {
       fontFamily: "'Inter', 'Plus Jakarta Sans', system-ui, sans-serif", padding: "24px",
     }}>
       <div style={{ width: "100%", maxWidth: 500 }}>
-        {/* Brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 36 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
@@ -214,7 +234,6 @@ export function SignupPage() {
           </div>
           <span style={{ fontSize: 22, fontWeight: 800, color: "#0F1F3D", letterSpacing: "-0.02em" }}>HealthSync</span>
         </div>
-        {/* Progress bar */}
         <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
           {[1, 2].map(s => (
             <div key={s} style={{
@@ -226,12 +245,10 @@ export function SignupPage() {
         <p style={{ fontSize: 12, color: "#B0C4DE", fontWeight: 600, margin: "0 0 20px", letterSpacing: "0.05em" }}>
           STEP {step} OF 2
         </p>
-        {/* Card */}
         <div style={{
           background: "white", borderRadius: 24, padding: "36px 40px",
           boxShadow: "0 8px 40px rgba(15,31,61,0.08)", border: "1px solid #E4EBF5",
         }}>
-          {/* ── STEP 1 ── */}
           {step === 1 && (
             <form onSubmit={handleSubmit(onStep1Valid)} noValidate>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0F1F3D", margin: "0 0 4px", letterSpacing: "-0.03em" }}>
@@ -240,17 +257,12 @@ export function SignupPage() {
               <p style={{ fontSize: 15, color: "#8BA3C0", margin: "0 0 28px", fontWeight: 500 }}>
                 Start your health journey today.
               </p>
-              {/* Name row */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                 {(["firstName", "lastName"] as const).map((fieldName, i) => (
                   <div key={fieldName}>
                     <p style={labelStyle}>{i === 0 ? "First name" : "Last name"}</p>
                     <div style={inputWrap(!!errors[fieldName])}>
-                      <input
-                        {...field(fieldName)}
-                        placeholder={i === 0 ? "e.g., John" : "e.g., Doe"}
-                        style={inputStyle}
-                      />
+                      <input {...field(fieldName)} style={inputStyle} />
                     </div>
                     {errors[fieldName] && (
                       <p style={fieldErrorStyle}>{errors[fieldName]?.message}</p>
@@ -258,7 +270,6 @@ export function SignupPage() {
                   </div>
                 ))}
               </div>
-              {/* Email */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Email</p>
                 <div style={{ ...inputWrap(!!errors.email), gap: 10 }}>
@@ -266,12 +277,10 @@ export function SignupPage() {
                     <path d="M2.5 4.5H15.5C15.78 4.5 16 4.72 16 5V13C16 13.28 15.78 13.5 15.5 13.5H2.5C2.22 13.5 2 13.28 2 13V5C2 4.72 2.22 4.5 2.5 4.5Z" stroke="#B0C4DE" strokeWidth="1.4"/>
                     <path d="M2 5.5L9 10L16 5.5" stroke="#B0C4DE" strokeWidth="1.4" strokeLinecap="round"/>
                   </svg>
-                  <input type="email" {...field("email")} placeholder="your@email.com"
-                    style={{ ...inputStyle, flex: 1 }} />
+                  <input type="email" {...field("email")} style={{ ...inputStyle, flex: 1 }} />
                 </div>
                 {errors.email && <p style={fieldErrorStyle}>{errors.email.message}</p>}
               </div>
-              {/* Phone Number */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Phone Number</p>
                 <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 8 }}>
@@ -296,12 +305,11 @@ export function SignupPage() {
                   <div style={inputWrap(!!errors.phoneNumber)}>
                     <input type="tel" inputMode="numeric"
                       {...field("phoneNumber", { onChange: (e) => { e.target.value = e.target.value.replace(/\D/g, ""); } })}
-                      placeholder="5X XXX XXXX" style={inputStyle} />
+                      style={inputStyle} />
                   </div>
                 </div>
                 {errors.phoneNumber && <p style={fieldErrorStyle}>{errors.phoneNumber.message}</p>}
               </div>
-              {/* Password */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Password</p>
                 <div style={{
@@ -315,12 +323,10 @@ export function SignupPage() {
                     <path d="M6 8.5V5.5C6 3.84 7.34 2.5 9 2.5C10.66 2.5 12 3.84 12 5.5V8.5" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round"/>
                     <circle cx="9" cy="13" r="1.2" fill="#1A6BCC"/>
                   </svg>
-                  <input type="password" {...field("password")} placeholder="Min. 8 characters"
-                    style={{ ...inputStyle, flex: 1 }} />
+                  <input type="password" {...field("password")} style={{ ...inputStyle, flex: 1 }} />
                 </div>
                 {errors.password && <p style={fieldErrorStyle}>{errors.password.message}</p>}
               </div>
-              {/* Confirm Password */}
               <div style={{ marginBottom: 24 }}>
                 <p style={labelStyle}>Confirm Password</p>
                 <div style={{ ...inputWrap(!!errors.confirmPassword), gap: 10 }}>
@@ -329,8 +335,7 @@ export function SignupPage() {
                     <path d="M6 8.5V5.5C6 3.84 7.34 2.5 9 2.5C10.66 2.5 12 3.84 12 5.5V8.5" stroke="#B0C4DE" strokeWidth="1.4" strokeLinecap="round"/>
                     <circle cx="9" cy="13" r="1.2" fill="#B0C4DE"/>
                   </svg>
-                  <input type="password" {...field("confirmPassword")} placeholder="Re-enter password"
-                    style={{ ...inputStyle, flex: 1 }} />
+                  <input type="password" {...field("confirmPassword")} style={{ ...inputStyle, flex: 1 }} />
                 </div>
                 {errors.confirmPassword && <p style={fieldErrorStyle}>{errors.confirmPassword.message}</p>}
               </div>
@@ -348,7 +353,6 @@ export function SignupPage() {
               </p>
             </form>
           )}
-          {/* ── STEP 2 ── */}
           {step === 2 && (
             <>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0F1F3D", margin: "0 0 4px", letterSpacing: "-0.03em" }}>
@@ -357,7 +361,6 @@ export function SignupPage() {
               <p style={{ fontSize: 15, color: "#8BA3C0", margin: "0 0 24px", fontWeight: 500 }}>
                 Help us personalize your experience.
               </p>
-              {/* Gender */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Gender</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -372,7 +375,6 @@ export function SignupPage() {
                   ))}
                 </div>
               </div>
-              {/* Date of birth */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Date of Birth</p>
                 <div style={{ display: "grid", gridTemplateColumns: "88px 1fr 96px", gap: 8 }}>
@@ -403,7 +405,6 @@ export function SignupPage() {
                   ))}
                 </div>
               </div>
-              {/* Height / Weight */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
                 {[
                   { label: "Height", unit: "cm", value: height, setter: setHeight },
@@ -412,7 +413,7 @@ export function SignupPage() {
                   <div key={i} style={{ minWidth: 0 }}>
                     <p style={labelStyle}>{f.label}</p>
                     <div style={{ ...inputWrap(), gap: 8, width: "100%", boxSizing: "border-box" }}>
-                      <input type="number" placeholder="—" value={f.value}
+                      <input type="number" value={f.value}
                         onChange={e => f.setter(e.target.value)}
                         style={{ ...inputStyle, flex: 1, minWidth: 0 }} />
                       <span style={{ fontSize: 13, color: "#B0C4DE", fontWeight: 600 }}>{f.unit}</span>
@@ -420,7 +421,6 @@ export function SignupPage() {
                   </div>
                 ))}
               </div>
-              {/* Blood type */}
               <div style={{ marginBottom: 16 }}>
                 <p style={labelStyle}>Blood Type</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -436,15 +436,13 @@ export function SignupPage() {
                   ))}
                 </div>
               </div>
-              {/* Hospital name
               <div style={{ marginBottom: 24 }}>
                 <p style={labelStyle}>Hospital Name</p>
                 <div style={inputWrap()}>
                   <input value={hospitalName} onChange={e => setHospitalName(e.target.value)}
-                    placeholder="Enter hospital name" style={inputStyle} />
+                    style={inputStyle} />
                 </div>
-              </div> */}
-              {/* Medical conditions */}
+              </div>
               <div style={{ marginBottom: 24 }}>
                 <p style={labelStyle}>Medical Conditions</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>

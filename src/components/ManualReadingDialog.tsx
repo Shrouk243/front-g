@@ -1,5 +1,3 @@
-
-
 import React from "react";
 import { createVital } from "../lib/api";
 import { useApp } from "../contexts/AppContext";
@@ -11,175 +9,472 @@ interface ManualReadingDialogProps {
   onClose: () => void;
   onSaved?: () => void | Promise<void>;
   initialType?: VitalType;
-  allowMulti?: boolean;
+  allowTypeSelection?: boolean;
+}
+
+const vitalOptions: Array<{ value: VitalType; label: string }> = [
+  { value: "blood_pressure", label: "Blood Pressure" },
+  { value: "heart_rate", label: "Heart Rate" },
+  { value: "oxygen", label: "Blood Oxygen" },
+  { value: "blood_sugar", label: "Blood Glucose" },
+];
+
+function getInitialDateTime() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
+  return { date: local.slice(0, 10), time: local.slice(11, 16) };
 }
 
 export function ManualReadingDialog({
   open,
   onClose,
   onSaved,
-  initialType = "heart_rate",
-  allowMulti = true,
+  initialType = "blood_pressure",
+  allowTypeSelection = true,
 }: ManualReadingDialogProps) {
-  const { colors, t, language } = useApp();
-  const isAR = language === "AR";
-
-  const [dateTime, setDateTime] = React.useState({ date: "", time: "" });
+  const { colors } = useApp();
+  const [type, setType] = React.useState<VitalType>(initialType);
+  const [dateTime, setDateTime] = React.useState(getInitialDateTime);
+  const [value, setValue] = React.useState("");
+  const [systolic, setSystolic] = React.useState("");
+  const [diastolic, setDiastolic] = React.useState("");
+  const [glucoseType, setGlucoseType] = React.useState<"fasting" | "random">("fasting");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const [readings, setReadings] = React.useState({
-    heart_rate: "",
-    oxygen: "",
-    blood_sugar: "",
-    systolic: "",
-    diastolic: "",
-  });
-
   React.useEffect(() => {
     if (!open) return;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-
-    setDateTime({ date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` });
+    setType(initialType);
+    setDateTime(getInitialDateTime());
+    setValue("");
+    setSystolic("");
+    setDiastolic("");
+    setGlucoseType("fasting");
     setError(null);
-    setReadings({ heart_rate: "", oxygen: "", blood_sugar: "", systolic: "", diastolic: "" });
-  }, [open]);
+  }, [initialType, open]);
 
-  const measuredAt = React.useMemo(() => {
-    try {
-      return new Date(`${dateTime.date}T${dateTime.time}`).toISOString();
-    } catch {
-      return new Date().toISOString();
-    }
-  }, [dateTime]);
+  if (!open) return null;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setSaving(true);
     setError(null);
 
+    if (type === "blood_pressure") {
+      const sysNum = Number(systolic);
+      const diaNum = Number(diastolic);
+      if (!systolic || !diastolic || Number.isNaN(sysNum) || Number.isNaN(diaNum)) {
+        setError("Please enter both systolic and diastolic values.");
+        setSaving(false);
+        return;
+      }
+      if (sysNum < 50 || sysNum > 300) {
+        setError("Systolic value must be between 50 and 300 mmHg. Please check your reading.");
+        setSaving(false);
+        return;
+      }
+      if (diaNum < 30 || diaNum > 200) {
+        setError("Diastolic value must be between 30 and 200 mmHg. Please check your reading.");
+        setSaving(false);
+        return;
+      }
+      if (diaNum >= sysNum) {
+        setError("Diastolic must be lower than Systolic. Please check your reading.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (type === "oxygen") {
+      const numVal = Number(value);
+      if (!value || Number.isNaN(numVal)) {
+        setError("Please enter an oxygen saturation value.");
+        setSaving(false);
+        return;
+      }
+      if (numVal < 50 || numVal > 100) {
+        setError("SpO2 must be between 50% and 100%. Please check your reading.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (type === "heart_rate") {
+      const numVal = Number(value);
+      if (!value || Number.isNaN(numVal)) {
+        setError("Please enter a heart rate value.");
+        setSaving(false);
+        return;
+      }
+      if (numVal < 50) {
+        setError("Heart rate is too low. Minimum allowed value is 50 bpm.");
+        setSaving(false);
+        return;
+      }
+      if (numVal > 170) {
+        setError("Heart rate is too high. Maximum allowed value is 170 bpm.");
+        setSaving(false);
+        return;
+      }
+    }
+
+    if (type === "blood_sugar") {
+      const numVal = Number(value);
+      if (!value || Number.isNaN(numVal)) {
+        setError("Please enter a blood glucose value.");
+        setSaving(false);
+        return;
+      }
+      if (numVal < 20 || numVal > 600) {
+        setError("Blood glucose must be between 20 and 600 mg/dL. Please check your reading.");
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
-      const promises: Promise<any>[] = [];
-      if (readings.heart_rate) promises.push(createVital({ type: "heart_rate", measured_at: measuredAt, value: Number(readings.heart_rate), source: "manual" }));
-      if (readings.oxygen) promises.push(createVital({ type: "oxygen", measured_at: measuredAt, value: Number(readings.oxygen), source: "manual" }));
-      if (readings.blood_sugar) promises.push(createVital({ type: "blood_sugar", measured_at: measuredAt, value: Number(readings.blood_sugar), source: "manual" }));
-      if (readings.systolic && readings.diastolic) {
-        promises.push(createVital({ type: "blood_pressure", measured_at: measuredAt, systolic: Number(readings.systolic), diastolic: Number(readings.diastolic), source: "manual" }));
-      }
+      const measuredAt = new Date(`${dateTime.date}T${dateTime.time}`).toISOString();
+      const payload =
+        type === "blood_pressure"
+          ? {
+              type,
+              measured_at: measuredAt,
+              systolic: Number(systolic),
+              diastolic: Number(diastolic),
+              source: "manual" as const,
+            }
+          : {
+              type,
+              measured_at: measuredAt,
+              value: Number(value),
+              source: "manual" as const,
+            };
 
-      if (promises.length === 0) {
-        throw new Error(isAR ? "أدخل على الأقل قراءة واحدة" : "Enter at least one reading");
-      }
-
-      await Promise.all(promises);
-      setReadings({ heart_rate: "", oxygen: "", blood_sugar: "", systolic: "", diastolic: "" });
+      await createVital(payload);
       await onSaved?.();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : isAR ? "خطأ في الحفظ" : "Error saving");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to save the reading.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (!open) return null;
-
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,31,61,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 100, boxSizing: "border-box" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: allowMulti ? 520 : 460, background: colors.cardBg, borderRadius: 20, border: `1px solid ${colors.border}`, padding: 24, direction: isAR ? "rtl" : "ltr", boxSizing: "border-box" }}>
-        
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: colors.textPrimary }}>
-            {t(allowMulti ? "dash_logReading" : "vitals_addReading")}
-          </h2>
-          <button onClick={onClose} style={{ fontSize: 28, background: "none", border: "none", color: colors.textMuted }}>×</button>
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15,31,61,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        zIndex: 60,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 460,
+          background: colors.cardBg,
+          borderRadius: 20,
+          border: `1px solid ${colors.border}`,
+          boxShadow: "0 20px 40px rgba(15,31,61,0.18)",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, margin: "0 0 4px" }}>
+              Add Manual Reading
+            </h2>
+            <p style={{ fontSize: 14, color: colors.textMuted, margin: 0 }}>
+              Save a new reading to your HealthSync history.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: colors.textMuted,
+              fontSize: 24,
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("common_date") || (isAR ? "التاريخ" : "Date")}</p>
-              <input type="date" value={dateTime.date} onChange={e => setDateTime(c => ({...c, date: e.target.value}))} required style={{ width: "100%", padding: "12px", borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box" }} />
-            </div>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("common_time") || (isAR ? "الوقت" : "Time")}</p>
-              <input type="time" value={dateTime.time} onChange={e => setDateTime(e => ({...e, time: e.target.value}))} required style={{ width: "100%", padding: "12px", borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box" }} />
-            </div>
-          </div>
-
-          {allowMulti ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_hr")}</p>
-                <input type="number" value={readings.heart_rate} onChange={e => setReadings(r => ({...r, heart_rate: e.target.value}))} placeholder="78" style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
+          {allowTypeSelection && (
+            <div style={{ marginBottom: 14 }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: colors.textMuted,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  margin: "0 0 8px",
+                }}
+              >
+                Vital Type
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                {vitalOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setType(option.value)}
+                    style={{
+                      height: 42,
+                      borderRadius: 10,
+                      border: `1.5px solid ${type === option.value ? colors.accentBlue : colors.border}`,
+                      background: type === option.value ? colors.navActiveBg : colors.inputBg,
+                      color: type === option.value ? colors.accentBlue : colors.textSecondary,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_oxygen")}</p>
-                <input type="number" value={readings.oxygen} onChange={e => setReadings(r => ({...r, oxygen: e.target.value}))} placeholder="97" style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_glucose")}</p>
-                <input type="number" value={readings.blood_sugar} onChange={e => setReadings(r => ({...r, blood_sugar: e.target.value}))} placeholder="105" style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_bp")}</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <input type="number" value={readings.systolic} onChange={e => setReadings(r => ({...r, systolic: e.target.value}))} placeholder="120" style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                  <input type="number" value={readings.diastolic} onChange={e => setReadings(r => ({...r, diastolic: e.target.value}))} placeholder="80" style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {initialType === "heart_rate" && (
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_hr")}</p>
-                  <input type="number" value={readings.heart_rate} onChange={e => setReadings(r => ({...r, heart_rate: e.target.value}))} placeholder="78" required style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                </div>
-              )}
-              {initialType === "oxygen" && (
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_oxygen")}</p>
-                  <input type="number" value={readings.oxygen} onChange={e => setReadings(r => ({...r, oxygen: e.target.value}))} placeholder="97" required style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                </div>
-              )}
-              {initialType === "blood_sugar" && (
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 6 }}>{t("vital_glucose")}</p>
-                  <input type="number" value={readings.blood_sugar} onChange={e => setReadings(r => ({...r, blood_sugar: e.target.value}))} placeholder="105" required style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                </div>
-              )}
-              {initialType === "blood_pressure" && (
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: colors.textMuted, marginBottom: 8 }}>{t("vital_bp")}</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div>
-                      <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 4 }}>{t("history_systolic")}</p>
-                      <input type="number" value={readings.systolic} onChange={e => setReadings(r => ({...r, systolic: e.target.value}))} placeholder="120" required style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 4 }}>{t("history_diastolic")}</p>
-                      <input type="number" value={readings.diastolic} onChange={e => setReadings(r => ({...r, diastolic: e.target.value}))} placeholder="80" required style={{width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${colors.border}`, background: colors.inputBg, boxSizing: "border-box"}} />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {error && <p style={{ color: "#ef4444", textAlign: "center", margin: "12px 0" }}>{error}</p>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: colors.textMuted,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  margin: "0 0 8px",
+                }}
+              >
+                Date
+              </p>
+              <input
+                type="date"
+                value={dateTime.date}
+                onChange={(e) => setDateTime((c) => ({ ...c, date: e.target.value }))}
+                required
+                style={{
+                  width: "100%",
+                  height: 44,
+                  borderRadius: 12,
+                  border: `1.5px solid ${colors.border}`,
+                  background: colors.inputBg,
+                  color: colors.textPrimary,
+                  padding: "0 14px",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: colors.textMuted,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  margin: "0 0 8px",
+                }}
+              >
+                Time
+              </p>
+              <input
+                type="time"
+                value={dateTime.time}
+                onChange={(e) => setDateTime((c) => ({ ...c, time: e.target.value }))}
+                required
+                style={{
+                  width: "100%",
+                  height: 44,
+                  borderRadius: 12,
+                  border: `1.5px solid ${colors.border}`,
+                  background: colors.inputBg,
+                  color: colors.textPrimary,
+                  padding: "0 14px",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+          </div>
 
-          <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: "14px", borderRadius: 12, border: `1.5px solid ${colors.border}`, background: colors.cardBg, color: colors.textSecondary }}>
-              {t("common_cancel") || "إلغاء"}
+          {type === "blood_pressure" ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
+              <div>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: colors.textMuted,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Systolic
+                </p>
+                <input
+                  type="number"
+                  min={40}
+                  max={260}
+                  value={systolic}
+                  onChange={(e) => setSystolic(e.target.value)}
+                  required
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    borderRadius: 12,
+                    border: `1.5px solid ${colors.border}`,
+                    background: colors.inputBg,
+                    color: colors.textPrimary,
+                    padding: "0 14px",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+              <div>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: colors.textMuted,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    margin: "0 0 8px",
+                  }}
+                >
+                  Diastolic
+                </p>
+                <input
+                  type="number"
+                  min={20}
+                  max={180}
+                  value={diastolic}
+                  onChange={(e) => setDiastolic(e.target.value)}
+                  required
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    borderRadius: 12,
+                    border: `1.5px solid ${colors.border}`,
+                    background: colors.inputBg,
+                    color: colors.textPrimary,
+                    padding: "0 14px",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: colors.textMuted,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  margin: "0 0 8px",
+                }}
+              >
+                {type === "heart_rate" ? "BPM" : type === "oxygen" ? "SpO2 %" : "mg/dL"}
+              </p>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                required
+                min={type === "heart_rate" ? 50 : undefined}
+                max={type === "heart_rate" ? 170 : undefined}
+                style={{
+                  width: "100%",
+                  height: 44,
+                  borderRadius: 12,
+                  border: `1.5px solid ${colors.border}`,
+                  background: colors.inputBg,
+                  color: colors.textPrimary,
+                  padding: "0 14px",
+                  fontFamily: "inherit",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-start",
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                borderRadius: 12,
+                padding: "12px 14px",
+                marginBottom: 12,
+              }}
+            >
+              <p style={{ color: "#DC2626", fontSize: 13, margin: 0, fontWeight: 600, lineHeight: 1.4 }}>{error}</p>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                height: 46,
+                borderRadius: 12,
+                border: "none",
+                background: "#0F2A5C",
+                color: "white",
+                fontWeight: 700,
+                cursor: saving ? "wait" : "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {saving ? "Saving..." : "Save Reading"}
             </button>
-            <button type="submit" disabled={saving} style={{ flex: 2, padding: "14px", borderRadius: 12, background: "#0F2A5C", color: "white", fontWeight: 700, border: "none" }}>
-              {saving ? (isAR ? "جاري الحفظ..." : "Saving...") : (t("vitals_addReading") || "حفظ")}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 120,
+                height: 46,
+                borderRadius: 12,
+                border: `1.5px solid ${colors.border}`,
+                background: colors.cardBg,
+                color: colors.textSecondary,
+                fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
             </button>
           </div>
         </form>

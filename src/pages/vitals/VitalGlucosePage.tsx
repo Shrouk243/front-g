@@ -1,6 +1,3 @@
-
-
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
@@ -10,22 +7,33 @@ import { getVitalNumericValue } from "../../lib/health-data";
 import { ManualReadingDialog } from "../../components/ManualReadingDialog";
 import type { BackendVital } from "../../types";
 
+type GlucoseType = "fasting" | "random";
+
 export function VitalGlucosePage() {
   const { colors, t, language } = useApp();
   const isAR = language === "AR";
   const [items, setItems] = React.useState<BackendVital[]>([]);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [glucoseType, setGlucoseType] = React.useState<GlucoseType>("fasting");
 
-  const getStatus = (value: number) => {
-    if (value < 70) return { color: "#DC2626", bg: "#FEE2E2", label: t("common_critical") };
-    if (value <= 99) return { color: "#16A34A", bg: "#DCFCE7", label: t("common_normal") };
-    if (value <= 140) return { color: "#B45309", bg: "#FEF3C7", label: t("common_elevated") };
-    return { color: "#DC2626", bg: "#FEE2E2", label: t("common_critical") };
+  // دالة حساب الحالة المدمجة بدعم اللغة العربية ونوع الفحص (صائم / عشوائي)
+  const getGlucoseStatus = (value: number, type: GlucoseType) => {
+    if (type === "fasting") {
+      if (value < 70)   return { label: t("common_critical" as any) || "Critical", color: "#DC2626", bg: "#FEE2E2" };
+      if (value <= 99)  return { label: t("common_normal" as any) || "Normal", color: "#16A34A", bg: "#DCFCE7" };
+      if (value <= 125) return { label: isAR ? "مرحلة ما قبل السكري" : "Pre-Diabetic", color: "#B45309", bg: "#FEF3C7" };
+      return                   { label: t("common_critical" as any) || "High", color: "#DC2626", bg: "#FEE2E2" };
+    }
+    // للحالة العشوائية (Random)
+    if (value < 70)  return { label: t("common_critical" as any) || "Critical", color: "#DC2626", bg: "#FEE2E2" };
+    if (value < 140) return { label: t("common_normal" as any) || "Normal", color: "#16A34A", bg: "#DCFCE7" };
+    if (value < 200) return { label: t("common_elevated" as any) || "Elevated", color: "#B45309", bg: "#FEF3C7" };
+    return                   { label: isAR ? "مرتفع جداً" : "Very High", color: "#DC2626", bg: "#FEE2E2" };
   };
 
   const loadReadings = React.useCallback(async () => {
     const response = await fetchVitals("blood_sugar");
-    setItems(response.items);
+    setItems(response.items || []);
   }, []);
 
   React.useEffect(() => {
@@ -33,16 +41,33 @@ export function VitalGlucosePage() {
   }, [loadReadings]);
 
   const latest = items[0];
-  const readings = items.slice(0, 8).reverse().map((item, index) => ({
-    time: item.measured_at ? new Date(item.measured_at).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" }) : `#${index + 1}`,
-    value: getVitalNumericValue(item),
-  }));
+  
+  const readings = items.slice(0, 8).reverse().map((item: any, index) => {
+    let formattedTime = `#${index + 1}`;
+    if (item && (item.measured_at || item.created_at || item.date)) {
+      const dateValue = item.measured_at || item.created_at || item.date;
+      formattedTime = new Date(dateValue).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+    }
+    return {
+      time: formattedTime,
+      value: getVitalNumericValue(item),
+    };
+  });
+
   const log = items.slice(0, 5);
 
-  const formatLatestDate = (dateString: string | undefined) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleString(isAR ? "ar-EG" : "en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+  const formatLatestDate = (item: any) => {
+    if (!item) return "";
+    const dateValue = item.measured_at || item.created_at || item.date;
+    if (!dateValue) return "";
+    return new Date(dateValue).toLocaleString(isAR ? "ar-EG" : "en-US", {
+      month: "short", 
+      day: "numeric", 
+      hour: "2-digit", 
+      minute: "2-digit"
     });
   };
 
@@ -53,7 +78,6 @@ export function VitalGlucosePage() {
         onClose={() => setDialogOpen(false)} 
         onSaved={loadReadings} 
         initialType="blood_sugar" 
-        allowMulti={false} 
       />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
@@ -73,6 +97,25 @@ export function VitalGlucosePage() {
         </button>
       </div>
 
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: colors.cardBg, border: `1px solid ${colors.border}`, borderRadius: 12, padding: 4, width: "fit-content" }}>
+        {(["fasting", "random"] as GlucoseType[]).map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => setGlucoseType(opt)}
+            style={{
+              height: 34, borderRadius: 9, border: "none", padding: "0 16px",
+              background: glucoseType === opt ? "#0F2A5C" : "transparent",
+              color: glucoseType === opt ? "white" : colors.textMuted,
+              fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: 13,
+              transition: "all 0.15s",
+            }}
+          >
+            {opt === "fasting" ? (isAR ? "صائم" : "Fasting") : (isAR ? "عشوائي" : "Random")}
+          </button>
+        ))}
+      </div>
+
       {latest && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginBottom: 16 }}>
@@ -83,20 +126,30 @@ export function VitalGlucosePage() {
                 </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 52, fontWeight: 900, color: colors.textPrimary, letterSpacing: "-0.04em", lineHeight: 1 }}>{latest.value}</span>
+                    <span style={{ fontSize: 52, fontWeight: 900, color: colors.textPrimary, letterSpacing: "-0.04em", lineHeight: 1 }}>{getVitalNumericValue(latest)}</span>
                     <span style={{ fontSize: 16, color: "#3B82F6", fontWeight: 700 }}>mg/dL</span>
                   </div>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: getStatus(getVitalNumericValue(latest)).bg, borderRadius: 10, padding: "4px 12px" }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: getStatus(getVitalNumericValue(latest)).color }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: getStatus(getVitalNumericValue(latest)).color }}>
-                      {getStatus(getVitalNumericValue(latest)).label}
-                    </span>
-                  </div>
+                  {(() => {
+                    const st = getGlucoseStatus(getVitalNumericValue(latest), glucoseType);
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: st.bg, borderRadius: 10, padding: "4px 12px" }}>
+                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: st.color }}>{st.label}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>
-                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatLatestDate(latest.measured_at)}
+              <p style={{ fontSize: 12, color: colors.textMuted, margin: "0 0 8px" }}>
+                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatLatestDate(latest)}
               </p>
+              <div style={{ background: colors.pageBg, border: `1px solid ${colors.borderLight}`, borderRadius: 8, padding: "6px 10px" }}>
+                <p style={{ fontSize: 11, color: colors.textMuted, margin: 0, fontWeight: 600 }}>
+                  {glucoseType === "fasting"
+                    ? (isAR ? "التشخيص كـ صائم · الطبيعي: 70–99 mg/dL" : "Interpreted as Fasting · Normal: 70–99 mg/dL")
+                    : (isAR ? "التشخيص كـ عشوائي · الطبيعي: < 140 mg/dL" : "Interpreted as Random · Normal: < 140 mg/dL")}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -104,14 +157,20 @@ export function VitalGlucosePage() {
             <div style={{ marginBottom: 12 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: colors.textPrimary, display: "block", marginBottom: 4 }}>{t("vitals_todaysPattern")}</span>
               <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 600 }}>
-                {isAR ? "أحدث قراءات سكر الدم المسجلة" : "Most recent backend glucose readings"}
+                {isAR ? "أحدث قراءات سكر الدم المستلمة من السيرفر" : "Most recent backend glucose readings"}
               </span>
             </div>
-            {/* تم تصغير حجم الشارت هنا */}
             <div style={{ background: colors.cardBg, borderRadius: 20, padding: "12px 14px 8px", border: `1px solid ${colors.borderLight}` }}>
               <HealthBarChart
                 data={readings}
-                series={[{ key: "value", label: t("vital_glucose"), color: "#3B82F6", latestColor: "#0EA5E9", warningColor: "#F59E0B", criticalColor: "#EF4444", thresholds: { direction: "high", warning: 140, critical: 155 } }]}
+                series={[{
+                  key: "value", label: t("vital_glucose"),
+                  color: "#3B82F6", latestColor: "#0EA5E9",
+                  warningColor: "#F59E0B", criticalColor: "#EF4444",
+                  thresholds: glucoseType === "fasting"
+                    ? { direction: "high", warning: 100, critical: 126 }
+                    : { direction: "high", warning: 140, critical: 200 },
+                }]}
                 height={130}
                 compact={true}
                 barSize={16}
@@ -126,16 +185,17 @@ export function VitalGlucosePage() {
           <h2 style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "0 0 10px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("vitals_todaysLog")}</h2>
           <div style={{ background: colors.cardBg, borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 8px rgba(15,31,61,0.06)" }}>
             {log.map((entry, index) => {
-              const status = getStatus(getVitalNumericValue(entry));
+              const numericValue = getVitalNumericValue(entry);
+              const st = getGlucoseStatus(numericValue, glucoseType);
               return (
                 <div key={entry.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", borderBottom: index < log.length - 1 ? `1px solid ${colors.borderLight}` : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: status.color }} />
-                    <span style={{ fontSize: 14, color: colors.textPrimary, fontWeight: 600 }}>{formatLatestDate(entry.measured_at)}</span>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
+                    <span style={{ fontSize: 14, color: colors.textPrimary, fontWeight: 600 }}>{formatLatestDate(entry)}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 17, fontWeight: 800, color: colors.textPrimary }}>{entry.value}<span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, marginLeft: 3 }}>mg/dL</span></span>
-                    <div style={{ padding: "4px 10px", borderRadius: 6, background: status.bg }}><span style={{ fontSize: 12, fontWeight: 700, color: status.color }}>{status.label}</span></div>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: colors.textPrimary }}>{numericValue}<span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, [isAR ? "marginRight" : "marginLeft"]: 3 }}>mg/dL</span></span>
+                    <div style={{ padding: "4px 10px", borderRadius: 6, background: st.bg }}><span style={{ fontSize: 12, fontWeight: 700, color: st.color }}>{st.label}</span></div>
                   </div>
                 </div>
               );

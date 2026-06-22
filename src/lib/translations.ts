@@ -1,3 +1,4 @@
+import React from "react";
 
 const EN = {
   nav_main: "Main",
@@ -105,13 +106,12 @@ const EN = {
   common_critical: "Critical",
   vitals_addReading: "Add Reading", 
 
-  // المفاتيح الجديدة المضافة
+  // المفاتيح الجديدة المضافة بشكل صحيح
   common_cancel: "Cancel",
   common_save: "Save",
   common_date: "Date",
   common_time: "Time",
   common_saving: "Saving...",
-  dash_logReading: "Log Reading",
 } as const;
 
 const AR: Record<keyof typeof EN, string> = {
@@ -220,13 +220,12 @@ const AR: Record<keyof typeof EN, string> = {
   common_critical: "حرج",
   vitals_addReading: "اضافة قراءة",
 
-  // المفاتيح الجديدة
+  // المفاتيح الجديدة المضافة باللغة العربية ومطابقتها للـ EN
   common_cancel: "إلغاء",
   common_save: "حفظ",
   common_date: "التاريخ",
   common_time: "الوقت",
   common_saving: "جاري الحفظ...",
-  dash_logReading: "تسجيل قياس",
 };
 
 export type TranslationKey = keyof typeof EN;

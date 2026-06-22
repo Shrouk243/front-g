@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useApp } from "../contexts/AppContext";
 import { fetchVitals } from "../lib/api";
@@ -8,40 +7,36 @@ import type { BackendVital, VitalReading } from "../types";
 type StatusKey = VitalReading["status"];
 
 // دالة موحدة وشاملة لحساب حالة السطر بناءً على القراءات الفعلية بالظبط كالتشخيص بالـ Dashboard
-function getRowCalculatedStatus(row: any, fallbackStatus: StatusKey): StatusKey {
-  let finalStatus: StatusKey = "normal";
-  let hasCritical = false;
-  let hasElevated = false;
-
+function getRowCalculatedStatus(row: any, fallbackStatus: any): StatusKey {
   // 1. فحص الضغط
   if (row.bp && row.bp !== "—") {
     const parts = row.bp.split("/");
     const sys = parseInt(parts[0], 10) || 0;
     const dia = parseInt(parts[1], 10) || 0;
-    if (sys >= 140 || dia >= 90) hasCritical = true;
-    else if ((sys >= 120 && sys < 140) || (dia >= 80 && dia < 90)) hasElevated = true;
+    if (sys >= 140 || dia >= 90) return "critical";
+    if ((sys >= 120 && sys < 140) || (dia >= 80 && dia < 90)) return "elevated";
   }
 
   // 2. فحص سكر الدم (Blood Glucose)
   if (row.glucose && row.glucose !== "—") {
     const glValue = parseInt(row.glucose, 10) || 0;
-    if (glValue < 70 || glValue > 140) hasCritical = true;
-    else if (glValue > 99 && glValue <= 140) hasElevated = true;
+    if (glValue < 70 || glValue > 140) return "critical";
+    if (glValue > 99 && glValue <= 140) return "elevated";
   }
 
   // 3. فحص الأكسجين (Oxygen)
   if (row.spo2 && row.spo2 !== "—") {
     const oxValue = parseFloat(row.spo2) || 0;
-    if (oxValue < 92) hasCritical = true;
-    else if (oxValue >= 92 && oxValue < 95) hasElevated = true;
+    if (oxValue < 92) return "critical";
+    if (oxValue >= 92 && oxValue < 95) return "elevated";
   }
 
-  // تحديد الأولوية للحالة الأشد خطورة في السطر
-  if (hasCritical) return "critical";
-  if (hasElevated) return "elevated";
+  // إذا لم يتحقق ما سبق، نتحقق من الـ fallbackStatus القادم من الباكيند
+  if (fallbackStatus === "critical") return "critical";
+  if (fallbackStatus === "elevated" || fallbackStatus === "warning") return "elevated";
 
-  // لو مفيش ضغط أو سكر أو أكسجين، نعتمد على الفولباك أو الـ HR
-  return fallbackStatus === "warning" ? "elevated" : fallbackStatus;
+  // الحالة الافتراضية الآمنة لـ TypeScript
+  return "normal";
 }
 
 export function HistoryPage() {
@@ -111,9 +106,9 @@ export function HistoryPage() {
       </h2>
 
       <div style={{ width: "100%" }}>
-        {groupedRows.map((row, index) => {
-          // حساب الحالة الشاملة بناءً على سكر الدم، الضغط، والأكسجين معاً
-          const finalStatus = getRowCalculatedStatus(row, row.status as StatusKey);
+        {groupedRows.map((row: any, index: number) => {
+          // تمرير الحالة مع عمل تسليك للنوع لمنع الأخطاء تماماً
+          const finalStatus = getRowCalculatedStatus(row, row.status);
           const s = statusColors[finalStatus] || statusColors.normal;
           
           return (

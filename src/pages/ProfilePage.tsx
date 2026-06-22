@@ -1,5 +1,3 @@
-
-
 import { Link } from "react-router-dom";
 import React from "react";
 import { useApp } from "../contexts/AppContext";
@@ -76,9 +74,11 @@ function Row({ icon, label, value, onClick, children }: RowProps) {
         {value && <p style={{ fontSize: 13, color: colors.textMuted, margin: "2px 0 0", fontWeight: 500 }}>{value}</p>}
         {children}
       </div>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M6 4L10 8L6 12" stroke={colors.border} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      {onClick && (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6 4L10 8L6 12" stroke={colors.border} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
     </div>
   );
 }
@@ -192,9 +192,19 @@ export function ProfilePage() {
       });
 
       const merged = mergeBackendProfile(response.user);
-      saveStoredProfile(merged);
-      setProfile(merged);
-      setDraft(merged);
+      
+      // إعادة تطبيق الحقول التي لا يدعمها الباكند حالياً لمنع ضياعها محلياً
+      const finalProfile: UserProfile = {
+        ...merged,
+        bloodType: nextProfile.bloodType,
+        hospitalName: nextProfile.hospitalName,
+        phoneCountryCode: nextProfile.phoneCountryCode,
+        phoneNumber: nextProfile.phoneNumber,
+      };
+
+      saveStoredProfile(finalProfile);
+      setProfile(finalProfile);
+      setDraft(finalProfile);
       setIsEditing(false);
     } catch (error) {
       setPageError(error instanceof Error ? error.message : "Unable to save profile changes.");
@@ -301,6 +311,7 @@ export function ProfilePage() {
         </button>
       </div>
 
+      {/* Hero Card */}
       <div style={{
         background: "#0F2A5C",
         borderRadius: 24,
@@ -357,11 +368,13 @@ export function ProfilePage() {
         </div>
       )}
 
+      {/* Edit Form */}
       {isEditing && (
         <div style={{ background: colors.cardBg, borderRadius: 20, padding: "24px", marginBottom: 20, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", border: `1px solid ${colors.border}` }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: colors.textPrimary, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Edit Profile</h2>
           <p style={{ fontSize: 14, color: colors.textMuted, margin: "0 0 20px", fontWeight: 500 }}>Update your personal and health information.</p>
 
+          {/* Name */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
             {[
               { label: "First Name", value: draft.firstName, key: "firstName" as const, placeholder: "Ahmad" },
@@ -381,18 +394,180 @@ export function ProfilePage() {
             ))}
           </div>
 
+          {/* Email — Read-only */}
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Email</p>
-            <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center" }}>
+            <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
               <input
                 value={draft.email}
-                onChange={(e) => handleDraftChange("email", e.target.value)}
-                placeholder="your@email.com"
+                readOnly
+                style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textMuted, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 500, cursor: "not-allowed" }}
+              />
+              <span style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, whiteSpace: "nowrap", letterSpacing: "0.04em" }}>Read-only</span>
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Phone Number</p>
+            <div style={{ display: "grid", gridTemplateColumns: "88px minmax(0, 1fr)", gap: 8 }}>
+              <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 12px", height: 48, display: "flex", alignItems: "center", position: "relative" }}>
+                <select
+                  value={draft.phoneCountryCode}
+                  onChange={(e) => handleDraftChange("phoneCountryCode", e.target.value)}
+                  style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 600, appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: 18 }}
+                >
+                  {countryCodes.map((code) => <option key={code} value={code}>{code}</option>)}
+                </select>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: "absolute", right: 12, pointerEvents: "none" }}>
+                  <path d="M3.5 5.5L7 9L10.5 5.5" stroke="#B0C4DE" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center", minWidth: 0 }}>
+                <input
+                  value={draft.phoneNumber}
+                  onChange={(e) => handleDraftChange("phoneNumber", e.target.value)}
+                  placeholder="5X XXX XXXX"
+                  style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", minWidth: 0, fontFamily: "inherit", fontWeight: 500 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Gender */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Gender</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+              {genderOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleDraftChange("gender", option)}
+                  style={{
+                    height: 44, borderRadius: 12,
+                    border: `1.5px solid ${draft.gender === option ? "#1A6BCC" : colors.border}`,
+                    background: draft.gender === option ? colors.navActiveBg : colors.inputBg,
+                    color: draft.gender === option ? colors.accentBlue : colors.textSecondary,
+                    fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date of Birth */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Date of Birth</p>
+            <div style={{ display: "grid", gridTemplateColumns: "88px minmax(0, 1fr) 96px", gap: 8 }}>
+              {[
+                { value: draft.dobDay,   key: "dobDay"   as const, placeholder: "Day",   options: days   },
+                { value: draft.dobMonth, key: "dobMonth" as const, placeholder: "Month", options: months },
+                { value: draft.dobYear,  key: "dobYear"  as const, placeholder: "Year",  options: years  },
+              ].map((field) => (
+                <div key={field.key} style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 12px", height: 48, display: "flex", alignItems: "center", position: "relative", minWidth: 0 }}>
+                  <select
+                    value={field.value}
+                    onChange={(e) => handleDraftChange(field.key, e.target.value)}
+                    style={{ border: "none", background: "transparent", fontSize: 15, color: field.value ? colors.textPrimary : colors.textMuted, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 500, appearance: "none", WebkitAppearance: "none", MozAppearance: "none", paddingRight: 18 }}
+                  >
+                    <option value="" disabled>{field.placeholder}</option>
+                    {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: "absolute", right: 12, pointerEvents: "none" }}>
+                    <path d="M3.5 5.5L7 9L10.5 5.5" stroke="#B0C4DE" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Height / Weight */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 16 }}>
+            {[
+              { label: "Height", unit: "cm", value: String(draft.height || ""), key: "height" as const },
+              { label: "Weight", unit: "kg", value: String(draft.weight || ""), key: "weight" as const },
+            ].map((field) => (
+              <div key={field.key} style={{ minWidth: 0 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>{field.label}</p>
+                <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center", gap: 8, width: "100%", boxSizing: "border-box" }}>
+                  <input
+                    type="number"
+                    value={field.value}
+                    onChange={(e) => handleDraftChange(field.key, Number(e.target.value))}
+                    placeholder="—"
+                    style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", flex: 1, minWidth: 0, width: "100%", fontFamily: "inherit", fontWeight: 500 }}
+                  />
+                  <span style={{ fontSize: 13, color: colors.textMuted, fontWeight: 600 }}>{field.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Blood Type */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Blood Type</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {bloodTypes.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleDraftChange("bloodType", type)}
+                  style={{
+                    width: 52, height: 42, borderRadius: 10,
+                    border: `1.5px solid ${draft.bloodType === type ? "#1A6BCC" : colors.border}`,
+                    background: draft.bloodType === type ? colors.navActiveBg : colors.inputBg,
+                    color: draft.bloodType === type ? colors.accentBlue : colors.textSecondary,
+                    fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hospital Name */}
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 8px" }}>Hospital Name</p>
+            <div style={{ background: colors.inputBg, border: `1.5px solid ${colors.border}`, borderRadius: 12, padding: "0 14px", height: 48, display: "flex", alignItems: "center" }}>
+              <input
+                value={draft.hospitalName}
+                onChange={(e) => handleDraftChange("hospitalName", e.target.value)}
+                placeholder="Enter hospital name"
                 style={{ border: "none", background: "transparent", fontSize: 15, color: colors.textPrimary, outline: "none", width: "100%", fontFamily: "inherit", fontWeight: 500 }}
               />
             </div>
           </div>
 
+          {/* Medical Conditions */}
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 10px" }}>Medical Conditions</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {medicalConditionOptions.map((condition) => {
+                const isSelected = draft.medicalConditions.includes(condition);
+                return (
+                  <button
+                    key={condition}
+                    type="button"
+                    onClick={() => toggleMedicalCondition(condition)}
+                    style={{
+                      minHeight: 38, padding: "8px 12px", borderRadius: 12,
+                      border: `1.5px solid ${isSelected ? "#1A6BCC" : colors.border}`,
+                      background: isSelected ? colors.navActiveBg : colors.inputBg,
+                      color: isSelected ? colors.accentBlue : colors.textSecondary,
+                      fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {condition}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
@@ -415,129 +590,6 @@ export function ProfilePage() {
           </div>
         </div>
       )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
-        {[
-          { labelKey: "profile_healthScore" as const, value: String(profile.healthScore), color: "#22C55E", suffix: "/100" },
-          { labelKey: "profile_daysActive" as const, value: String(profile.daysActive), color: "#1A6BCC", suffix: "" },
-          { labelKey: "profile_alertsMonth" as const, value: String(profile.alertsThisMonth), color: "#F59E0B", suffix: "" },
-        ].map((s, i) => (
-          <div key={i} style={{ background: colors.cardBg, borderRadius: 14, padding: "16px", textAlign: "center", boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
-            <p style={{ fontSize: 28, fontWeight: 900, color: s.color, margin: "0 0 4px", letterSpacing: "-0.03em" }}>
-              {s.value}<span style={{ fontSize: 14, fontWeight: 600 }}>{s.suffix}</span>
-            </p>
-            <p style={{ fontSize: 12, color: colors.textMuted, margin: 0, fontWeight: 600 }}>{t(s.labelKey)}</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background: colors.cardBg, borderRadius: 18, padding: "18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "0 0 12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("profile_conditions")}</p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {profile.medicalConditions.map((condition) => {
-            const style = getConditionStyle(condition);
-            return (
-              <div key={condition} style={{ padding: "7px 16px", borderRadius: 20, background: style.bg, fontSize: 13, fontWeight: 700, color: style.color }}>
-                {condition}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ background: colors.cardBg, borderRadius: 18, padding: "4px 18px", marginBottom: 14, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "14px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>{t("profile_personalDetails")}</p>
-        <Row
-          icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="4" width="14" height="12" rx="2" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M5.5 2V5M12.5 2V5M2 7.5H16" stroke="#1A6BCC" strokeWidth="1.4" strokeLinecap="round" /></svg>}
-          label={t("profile_dob")}
-          value={profile.dateOfBirth || "—"}
-        />
-      </div>
-
-      <div style={{ background: colors.cardBg, borderRadius: 18, padding: "4px 18px", marginBottom: 14, boxShadow: "0 1px 4px rgba(15,31,61,0.05)", transition: "background 0.3s" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: colors.textMuted, margin: "14px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          {t("profile_appSettings")}
-        </p>
-
-        <div style={{ borderBottom: `1px solid ${colors.divider}`, padding: "14px 0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
-              {t("profile_language")}
-            </span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button 
-                onClick={() => setLanguage("EN")} 
-                style={{ padding: "6px 12px", borderRadius: 8, border: language === "EN" ? `1.5px solid ${colors.accentBlue}` : `1.5px solid ${colors.border}`, background: language === "EN" ? colors.navActiveBg : colors.cardBg, color: colors.textPrimary, cursor: "pointer", fontWeight: 600 }}
-              >
-                English
-              </button>
-              <button 
-                onClick={() => setLanguage("AR")} 
-                style={{ padding: "6px 12px", borderRadius: 8, border: language === "AR" ? `1.5px solid ${colors.accentBlue}` : `1.5px solid ${colors.border}`, background: language === "AR" ? colors.navActiveBg : colors.cardBg, color: colors.textPrimary, cursor: "pointer", fontWeight: 600 }}
-              >
-                العربية
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ borderBottom: telegramOpen ? `1px solid ${colors.divider}` : "none", padding: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 15, fontWeight: 600, color: colors.textPrimary }}>
-            {language === "AR" ? "مظهر التطبيق" : "App Theme"}
-          </span>
-          <button
-            onClick={toggleTheme}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 10,
-              border: `1.5px solid ${colors.border}`,
-              background: colors.inputBg,
-              color: colors.accentBlue,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: "inherit",
-            }}
-          >
-            {theme === "dark" 
-              ? (language === "AR" ? "☀️ فاتح" : "☀️ Light") 
-              : (language === "AR" ? "🌙 داكن" : "🌙 Dark")
-            }
-          </button>
-        </div>
-
-        <div style={{ borderBottom: "none" }}>
-          <Row
-            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2C6.79 2 5 3.79 5 6V11L3.5 13H14.5L13 11V6C13 3.79 11.21 2 9 2Z" stroke="#1A6BCC" strokeWidth="1.4" /><path d="M7.5 14C7.5 14.83 8.17 15.5 9 15.5GG" stroke="#1A6BCC" strokeWidth="1.4" /></svg>}
-            label="Telegram Alerts"
-            value={telegramStatus.connected ? (telegramStatus.telegram_username ? `Connected to @${telegramStatus.telegram_username}` : "Connected") : "Not connected"}
-            onClick={() => setTelegramOpen((current) => !current)}
-          />
-        </div>
-
-        {telegramOpen && (
-          <div style={{ padding: "16px 0" }}>
-            <div style={{ background: colors.inputBg, borderRadius: 16, border: `1px solid ${colors.border}`, padding: 16 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: colors.textPrimary, margin: "0 0 4px" }}>Connection Status</p>
-              <p style={{ fontSize: 13, color: colors.textMuted, margin: "0 0 12px" }}>
-                {telegramStatus.connected ? "Your profile is successfully linked to Telegram." : "Link your profile to receive automated health updates."}
-              </p>
-              {telegramStatus.connected ? (
-                <button onClick={handleDisconnectTelegram} disabled={telegramBusy !== null} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#DC2626", color: "white", cursor: "pointer", fontWeight: 600 }}>
-                  {telegramBusy === "disconnect" ? "Disconnecting..." : "Disconnect Telegram"}
-                </button>
-              ) : (
-                <button onClick={handleConnectTelegram} disabled={telegramBusy !== null} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: colors.accentBlue, color: "white", cursor: "pointer", fontWeight: 600 }}>
-                  {telegramBusy === "connect" ? "Connecting..." : "Connect Telegram"}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

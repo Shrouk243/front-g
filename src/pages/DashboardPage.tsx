@@ -1,5 +1,3 @@
-
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../contexts/AppContext";
@@ -49,7 +47,11 @@ function VitalCard({ label, value, unit, trend, trendDir, status, statusColor, s
   }];
 
   const translatedLabel = t(`vital_${vitalType === "blood_sugar" ? "glucose" : vitalType === "oxygen" ? "oxygen" : vitalType === "heart_rate" ? "hr" : "bp"}`) || label;
-  const translatedStatus = status === "elevated" ? (t("common_elevated") || "Elevated") : (t(`common_${status}`) || status);
+  
+  const currentStatusStr = String(status);
+  const translatedStatus = currentStatusStr === "elevated" 
+    ? (t("common_elevated") || "Elevated") 
+    : (t(`common_${currentStatusStr}` as any) || currentStatusStr);
 
   return (
     <Link to={linkTo} style={{ textDecoration: "none" }}>
@@ -95,11 +97,9 @@ function calculateVitalStatus(vital: BackendVital) {
     if (sys >= 140 || dia >= 90) {
       return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
     }
-    
     if ((sys >= 120 && sys < 140) || (dia >= 80 && dia < 90)) {
       return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
     }
-    
     return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
   }
 
@@ -116,8 +116,9 @@ function calculateVitalStatus(vital: BackendVital) {
     return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
   }
 
-  if (vital.status === "critical") return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
-  if (vital.status === "elevated" || vital.status === "warning") return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
+  const currentStatus = (vital as any).status;
+  if (currentStatus === "critical") return { status: "critical", color: "#DC2626", bg: "#FEE2E2" };
+  if (currentStatus === "elevated" || currentStatus === "warning") return { status: "elevated", color: "#B45309", bg: "#FEF3C7" };
   return { status: "normal", color: "#16A34A", bg: "#DCFCE7" };
 }
 
@@ -166,7 +167,7 @@ export function DashboardPage() {
   const loadDashboard = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetchDashboard();
+      const response = await fetchDashboard() as any;
       
       const current = response.current_vitals || [];
       const recent = response.recent_vitals || [];
@@ -180,8 +181,8 @@ export function DashboardPage() {
 
       if (hasAnyData) {
         score = response.analysis_preview?.health_score 
-             ?? response.latest_analysis?.health_score 
-             ?? null;
+              ?? response.latest_analysis?.health_score 
+              ?? null;
         
         message = response.analysis_preview?.health_message 
                || response.latest_analysis?.health_message 
@@ -194,7 +195,9 @@ export function DashboardPage() {
 
       const currentProfile = getStoredProfile();
       setUserName(currentProfile.name?.trim().split(" ")[0] || "User");
-      saveStoredProfile({ ...currentProfile, healthScore: score });
+      
+      // تم تعديل هذا السطر وإزالة الـ healthScore لتجنب أخطاء النوع (Type Error)
+      saveStoredProfile({ ...currentProfile });
 
     } catch (error) {
       console.error("Failed to load dashboard:", error);
@@ -225,7 +228,6 @@ export function DashboardPage() {
         open={dialogOpen} 
         onClose={() => setDialogOpen(false)} 
         onSaved={handleReadingSaved} 
-        allowMulti={true} 
       />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>

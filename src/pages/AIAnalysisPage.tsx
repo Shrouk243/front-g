@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useEffect } from "react";
 import { useApp } from "../contexts/AppContext";
 import { getStoredProfile } from "../lib/profile-storage";

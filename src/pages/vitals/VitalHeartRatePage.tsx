@@ -1,10 +1,9 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { useApp } from "../../contexts/AppContext";
 import { HealthBarChart } from "../../components/charts/HealthBarChart";
 import { fetchVitals } from "../../lib/api";
-import { formatVitalTimestamp, getVitalNumericValue } from "../../lib/health-data";
+import { getVitalNumericValue } from "../../lib/health-data";
 import { ManualReadingDialog } from "../../components/ManualReadingDialog";
 import type { BackendVital } from "../../types";
 
@@ -16,7 +15,7 @@ export function VitalHeartRatePage() {
 
   const loadReadings = React.useCallback(async () => {
     const response = await fetchVitals("heart_rate");
-    setItems(response.items);
+    setItems(response.items || []);
   }, []);
 
   React.useEffect(() => {
@@ -25,16 +24,36 @@ export function VitalHeartRatePage() {
 
   const latest = items[0];
 
-  const readings = items.slice(0, 8).reverse().map((item, index) => ({
-    time: item.measured_at ? new Date(item.measured_at).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
-      hour: "2-digit", 
-      minute: "2-digit" 
-    }) : `#${index + 1}`,
-    value: getVitalNumericValue(item),
-  }));
+  const readings = items.slice(0, 8).reverse().map((item: any, index) => {
+    let formattedTime = `#${index + 1}`;
+    if (item && (item.measured_at || item.created_at || item.date)) {
+      const dateValue = item.measured_at || item.created_at || item.date;
+      formattedTime = new Date(dateValue).toLocaleTimeString(isAR ? "ar-EG" : "en-US", { 
+        hour: "2-digit", 
+        minute: "2-digit" 
+      });
+    }
+    return {
+      time: formattedTime,
+      value: getVitalNumericValue(item),
+    };
+  });
+
+  const formatVitalTimestampLocal = (item: any) => {
+    if (!item) return "";
+    const dateValue = item.measured_at || item.created_at || item.date;
+    if (!dateValue) return "";
+    return new Date(dateValue).toLocaleString(isAR ? "ar-EG" : "en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
 
   // استخراج القيمة الحالية عشان نعرض رسالة الخطأ التحذيرية لو القراءة من الداتابيز خيالية
   const currentVal = latest ? getVitalNumericValue(latest) : 0;
+  const currentStatus = latest && (latest as any).status ? (latest as any).status : "normal";
 
   return (
     <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto", direction: isAR ? "rtl" : "ltr" }}>
@@ -43,7 +62,6 @@ export function VitalHeartRatePage() {
         onClose={() => setDialogOpen(false)} 
         onSaved={loadReadings} 
         initialType="heart_rate" 
-        allowMulti={false} 
       />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
@@ -99,22 +117,22 @@ export function VitalHeartRatePage() {
                   </div>
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
-                    background: latest.status === "critical" ? "#FEE2E2" : latest.status === "elevated" ? "#FEF3C7" : "#DCFCE7",
+                    background: currentStatus === "critical" ? "#FEE2E2" : currentStatus === "elevated" ? "#FEF3C7" : "#DCFCE7",
                     borderRadius: 12, padding: "5px 12px", marginTop: 6,
                   }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: latest.status === "critical" ? "#EF4444" : latest.status === "elevated" ? "#F59E0B" : "#22C55E" }} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: latest.status === "critical" ? "#DC2626" : latest.status === "elevated" ? "#B45309" : "#16A34A" }}>
-                      {t(`common_${latest.status}`) || latest.status}
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: currentStatus === "critical" ? "#EF4444" : currentStatus === "elevated" ? "#F59E0B" : "#22C55E" }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: currentStatus === "critical" ? "#DC2626" : currentStatus === "elevated" ? "#B45309" : "#16A34A" }}>
+                     {t(`common_${currentStatus}` as any) || currentStatus}
                     </span>
                   </div>
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0 }}>
-                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatVitalTimestamp(latest.measured_at)}
+              <p style={{ fontSize: 12, color: colors.textMuted, margin: 0, marginBottom: 6 }}>
+                {isAR ? "آخر قراءة: " : "Latest reading: "} {formatVitalTimestampLocal(latest)}
               </p>
 
               {/* 🚨 رسالة تحذيرية ذكية تظهر أسفل الكارت الرئيسي لو القراءة المسجلة غير منطقية */}
-              {currentVal > 220 || currentVal < 30 ? (
+              {(currentVal > 220 || currentVal < 30) && (
                 <div style={{ 
                   marginTop: 14, padding: "10px 14px", borderRadius: 10, background: "#FEE2E2", border: "1px solid #FCA5A5", color: "#991B1B", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8
                 }}>
@@ -127,7 +145,7 @@ export function VitalHeartRatePage() {
                       : "Warning: The current heart rate reading is medically invalid."}
                   </span>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -143,7 +161,6 @@ export function VitalHeartRatePage() {
                 height={220}
                 unit="bpm"
                 yDomain={[40, 140]}
-                // 👇 زيادة سُمك الأعمدة والمسافات حاجة بسيطة لتصبح واضحة ومقروءة ووسطية
                 barSize={12}
                 barGap={5}
                 tooltipLabel={t("vitals_todaysReadings")}
@@ -156,5 +173,3 @@ export function VitalHeartRatePage() {
     </div>
   );
 }
-
-

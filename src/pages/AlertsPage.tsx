@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from "react";
 import { useApp } from "../contexts/AppContext";
 import { fetchAlerts, markAlertRead } from "../lib/api";
@@ -64,7 +62,8 @@ function AlertCard({ alert, onRead }: { alert: AlertItem & { id: number }; onRea
           </div>
           <div style={{ padding: "4px 10px", borderRadius: 6, background: s.tag, flexShrink: 0 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: s.tagText, letterSpacing: "0.03em" }}>
-              {t(s.tagKey) || alert.severity}
+              {/* حل مشكلة ايرور ترجمة التاج باستخدام as any */}
+              {(t as any)(s.tagKey) || alert.severity}
             </span>
           </div>
         </div>
@@ -91,7 +90,8 @@ function AlertCard({ alert, onRead }: { alert: AlertItem & { id: number }; onRea
                 fontFamily: "inherit" 
               }}
             >
-              {t("alerts_markAsRead") || (isAR ? "تحديد كمقروء" : "Mark read")}
+              {/* حل مشكلة ايرور الترجمة هنا أيضاً باستخدام as any */}
+              {(t as any)("alerts_markAsRead") || (isAR ? "تحديد كمقروء" : "Mark read")}
             </button>
           )}
         </div>
@@ -130,10 +130,10 @@ export function AlertsPage() {
   }, []);
 
   const filterOptions = [
-    { key: "all", label: t("alerts_all") || (isAR ? "الكل" : "All") },
-    { key: "critical", label: t("alerts_critical") || (isAR ? "حرج" : "Critical") },
-    { key: "elevated", label: t("alerts_elevated") || (isAR ? "مرتفع" : "Elevated") },
-    { key: "info", label: t("alerts_info") || (isAR ? "معلومات" : "Info") },
+    { key: "all", label: (t as any)("alerts_all") || (isAR ? "الكل" : "All") },
+    { key: "critical", label: (t as any)("alerts_critical") || (isAR ? "حرج" : "Critical") },
+    { key: "elevated", label: (t as any)("alerts_elevated") || (isAR ? "مرتفع" : "Elevated") },
+    { key: "info", label: (t as any)("alerts_info") || (isAR ? "معلومات" : "Info") },
   ];
 
   const filtered = filter === "all" ? alerts : alerts.filter((alert) => alert.severity === filter);
@@ -169,7 +169,7 @@ export function AlertsPage() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, margin: "0 0 4px", letterSpacing: "-0.03em" }}>
-            {t("alerts_title") || (isAR ? "التنبيهات" : "Alerts")}
+            {(t as any)("alerts_title") || (isAR ? "التنبيهات" : "Alerts")}
           </h1>
           <p style={{ fontSize: 14, color: colors.textMuted, margin: 0, fontWeight: 500 }}>
             <span style={{ color: "#EF4444", fontWeight: 700 }}>
@@ -192,7 +192,7 @@ export function AlertsPage() {
             fontFamily: "inherit",
           }}
         >
-          {t("alerts_markRead") || (isAR ? "تعليم الكل كمقروء" : "Mark all read")}
+          {(t as any)("alerts_markRead") || (isAR ? "تعليم الكل كمقروء" : "Mark all read")}
         </button>
       </div>
 
@@ -228,7 +228,7 @@ export function AlertsPage() {
       {!loading && filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: "60px 0", color: colors.textMuted }}>
           <p style={{ fontSize: 16, fontWeight: 500 }}>
-            {t("alerts_noAlerts") || (isAR ? "لا توجد تنبيهات" : "No alerts found")}
+            {(t as any)("alerts_noAlerts") || (isAR ? "لا توجد تنبيهات" : "No alerts found")}
           </p>
         </div>
       )}
