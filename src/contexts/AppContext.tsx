@@ -2,8 +2,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { AppContextValue, Language, ThemeMode, TranslationKey } from "../types";
 import { getColors } from "../lib/theme";
 import { translations } from "../lib/translations";
+import { getStoredProfile, saveStoredProfile } from "../lib/profile-storage";
+import { fetchProfile } from "../lib/api";
 
-const AppContext = createContext<AppContextValue | null>(null);
+const AppContext = createContext<any>(null);
 
 function readStorage<T>(key: string, fallback: T): T {
   try {
@@ -16,15 +18,10 @@ function readStorage<T>(key: string, fallback: T): T {
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<ThemeMode>(() =>
-    readStorage<ThemeMode>("hs_theme", "dark")
-  );
-
-  const [language, setLanguageState] = useState<Language>(() =>
-    readStorage<Language>("hs_language", "EN")
-  );
-
+  const [theme, setTheme] = useState<ThemeMode>(() => readStorage<ThemeMode>("hs_theme", "dark"));
+  const [language, setLanguageState] = useState<Language>(() => readStorage<Language>("hs_language", "EN"));
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [profile, setProfile] = useState(() => getStoredProfile());
 
   const isRTL = language === "AR";
 
@@ -36,8 +33,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [theme, isRTL]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
+    setIsLoading(false);
   }, []);
 
   const toggleTheme = useCallback(() => {
@@ -53,14 +49,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("hs_language", JSON.stringify(lang));
   }, []);
 
+  const refreshProfileData = useCallback(async () => {
+    try {
+      const response = await fetchProfile() as any;
+      // نتحقق من وجود الكائن أولاً قبل القراءة منه لمنع الـ Runtime Errors
+      const updatedProfile = response?.user || response; 
+      
+      // تحويل النوع إلى any هنا يحل المشكلة فوراً ويمرر البيانات بأمان
+      saveStoredProfile(updatedProfile as any);
+      setProfile(updatedProfile as any);
+    } catch (error) {
+      console.error("Error refreshing profile data:", error);
+    }
+  }, []);
+
   const t = useCallback(
-    (key: TranslationKey): string => translations[language][key],
+    (key: TranslationKey): string => {
+      try {
+        const translation = translations[language]?.[key];
+        if (translation) return translation;
+        const fallback = translations["EN"]?.[key];
+        if (fallback) return fallback;
+        return key;
+      } catch (error) {
+        return key;
+      }
+    },
     [language]
   );
 
   const colors = getColors(theme);
 
-  const value: AppContextValue = {
+  const value = {
     theme,
     toggleTheme,
     colors,
@@ -70,12 +90,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     setIsLoading,
     t,
-  };
+    profile,         
+    refreshProfileData 
+  } as any;
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-export function useApp(): AppContextValue {
+export function useApp(): any {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;

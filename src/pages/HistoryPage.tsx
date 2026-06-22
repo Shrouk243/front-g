@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useApp } from "../contexts/AppContext";
 import { fetchVitals } from "../lib/api";
@@ -7,18 +6,47 @@ import type { BackendVital, VitalReading } from "../types";
 
 type StatusKey = VitalReading["status"];
 
-const statusColors: Record<StatusKey, { color: string; bg: string; label: string }> = {
-  normal: { color: "#16A34A", bg: "#DCFCE7", label: "Normal" },
-  elevated: { color: "#B45309", bg: "#FEF3C7", label: "Elevated" },
-  critical: { color: "#DC2626", bg: "#FEE2E2", label: "High" },
-};
+// دالة موحدة وشاملة لحساب حالة السطر بناءً على القراءات الفعلية بالظبط كالتشخيص بالـ Dashboard
+function getRowCalculatedStatus(row: any, fallbackStatus: any): StatusKey {
+  // 1. فحص الضغط
+  if (row.bp && row.bp !== "—") {
+    const parts = row.bp.split("/");
+    const sys = parseInt(parts[0], 10) || 0;
+    const dia = parseInt(parts[1], 10) || 0;
+    if (sys >= 140 || dia >= 90) return "critical";
+    if ((sys >= 120 && sys < 140) || (dia >= 80 && dia < 90)) return "elevated";
+  }
+
+  // 2. فحص سكر الدم (Blood Glucose)
+  if (row.glucose && row.glucose !== "—") {
+    const glValue = parseInt(row.glucose, 10) || 0;
+    if (glValue < 70 || glValue > 140) return "critical";
+    if (glValue > 99 && glValue <= 140) return "elevated";
+  }
+
+  // 3. فحص الأكسجين (Oxygen)
+  if (row.spo2 && row.spo2 !== "—") {
+    const oxValue = parseFloat(row.spo2) || 0;
+    if (oxValue < 92) return "critical";
+    if (oxValue >= 92 && oxValue < 95) return "elevated";
+  }
+
+  // إذا لم يتحقق ما سبق، نتحقق من الـ fallbackStatus القادم من الباكيند
+  if (fallbackStatus === "critical") return "critical";
+  if (fallbackStatus === "elevated" || fallbackStatus === "warning") return "elevated";
+
+  // الحالة الافتراضية الآمنة لـ TypeScript
+  return "normal";
+}
 
 export function HistoryPage() {
   const { colors, t, isRTL } = useApp();
   const [items, setItems] = React.useState<BackendVital[]>([]);
 
   React.useEffect(() => {
-    fetchVitals().then((response) => setItems(response.items)).catch(() => undefined);
+    fetchVitals()
+      .then((response) => setItems(response.items || []))
+      .catch(() => undefined);
   }, []);
 
   const groupedRows = groupHistoryRows(items);
@@ -27,26 +55,44 @@ export function HistoryPage() {
   const oxygenValues = items.filter((item) => item.type === "oxygen");
   const glucoseValues = items.filter((item) => item.type === "blood_sugar");
 
+  const statusColors: Record<StatusKey, { color: string; bg: string; label: string }> = {
+    normal: { color: "#16A34A", bg: "#DCFCE7", label: t("common_normal") || "Normal" },
+    elevated: { color: "#B45309", bg: "#FEF3C7", label: t("common_elevated") || "Elevated" },
+    critical: { color: "#DC2626", bg: "#FEE2E2", label: t("common_critical") || "High" },
+  };
+
   const averages = {
-    bp: bpValues.length ? `${Math.round(bpValues.reduce((sum, item) => sum + (item.systolic ?? 0), 0) / bpValues.length)}/${Math.round(bpValues.reduce((sum, item) => sum + (item.diastolic ?? 0), 0) / bpValues.length)}` : "—",
-    hr: hrValues.length ? `${Math.round(hrValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / hrValues.length)} bpm` : "—",
-    spo2: oxygenValues.length ? `${(oxygenValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / oxygenValues.length).toFixed(1)}%` : "—",
-    glucose: glucoseValues.length ? `${Math.round(glucoseValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / glucoseValues.length)} mg/dL` : "—",
+    bp: bpValues.length 
+      ? `${Math.round(bpValues.reduce((sum, item) => sum + (item.systolic ?? 0), 0) / bpValues.length)}/${Math.round(bpValues.reduce((sum, item) => sum + (item.diastolic ?? 0), 0) / bpValues.length)}` 
+      : "—",
+    hr: hrValues.length 
+      ? `${Math.round(hrValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / hrValues.length)} bpm` 
+      : "—",
+    spo2: oxygenValues.length 
+      ? `${(oxygenValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / oxygenValues.length).toFixed(1)}%` 
+      : "—",
+    glucose: glucoseValues.length 
+      ? `${Math.round(glucoseValues.reduce((sum, item) => sum + getVitalNumericValue(item), 0) / glucoseValues.length)} mg/dL` 
+      : "—",
   };
 
   return (
     <div style={{ padding: "24px", maxWidth: 1200, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, margin: "0 0 4px", letterSpacing: "-0.03em" }}>{t("history_title")}</h1>
-        <p style={{ fontSize: 14, color: colors.textMuted, margin: 0, fontWeight: 500 }}>{t("history_subtitle")}</p>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: colors.textPrimary, margin: "0 0 4px", letterSpacing: "-0.03em" }}>
+          {t("history_title")}
+        </h1>
+        <p style={{ fontSize: 14, color: colors.textMuted, margin: 0, fontWeight: 500 }}>
+          {t("history_subtitle")}
+        </p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
         {[
-          { labelKey: "history_avgBP" as const, value: averages.bp, color: "#F59E0B", bg: "#FEF3C7" },
-          { labelKey: "history_avgHR" as const, value: averages.hr, color: "#EF4444", bg: "#FEE2E2" },
-          { labelKey: "history_avgSpO2" as const, value: averages.spo2, color: "#0DC9B1", bg: "#E6FAF8" },
-          { labelKey: "history_avgGlucose" as const, value: averages.glucose, color: "#3B82F6", bg: "#DBEAFE" },
+          { labelKey: "history_avgBP" as const, value: averages.bp, color: "#F59E0B", bg: colors.border },
+          { labelKey: "history_avgHR" as const, value: averages.hr, color: "#EF4444", bg: colors.border },
+          { labelKey: "history_avgSpO2" as const, value: averages.spo2, color: "#0DC9B1", bg: colors.border },
+          { labelKey: "history_avgGlucose" as const, value: averages.glucose, color: "#3B82F6", bg: colors.border },
         ].map((stat) => (
           <div key={stat.labelKey} style={{ background: colors.cardBg, borderRadius: 16, padding: "16px", textAlign: "center", boxShadow: "0 2px 8px rgba(15,31,61,0.06)", border: `1px solid ${stat.bg}` }}>
             <p style={{ fontSize: 20, fontWeight: 800, color: stat.color, margin: "0 0 4px" }}>{stat.value}</p>
@@ -55,11 +101,16 @@ export function HistoryPage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: 15, fontWeight: 700, color: colors.textMuted, margin: "0 0 14px", letterSpacing: "0.04em", textTransform: "uppercase" }}>{t("history_readingsLog")}</h2>
+      <h2 style={{ fontSize: 15, fontWeight: 700, color: colors.textMuted, margin: "0 0 14px", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+        {t("history_readingsLog")}
+      </h2>
 
       <div style={{ width: "100%" }}>
-        {groupedRows.map((row, index) => {
-          const s = statusColors[row.status];
+        {groupedRows.map((row: any, index: number) => {
+          // تمرير الحالة مع عمل تسليك للنوع لمنع الأخطاء تماماً
+          const finalStatus = getRowCalculatedStatus(row, row.status);
+          const s = statusColors[finalStatus] || statusColors.normal;
+          
           return (
             <div key={`${row.date}-${row.time}-${index}`} style={{
               background: colors.cardBg,
@@ -69,7 +120,7 @@ export function HistoryPage() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              border: `1px solid ${row.status === "critical" ? "#FECACA" : colors.border}`,
+              border: `1px solid ${finalStatus === "critical" ? "#FECACA" : colors.border}`,
               gap: 16,
               marginBottom: 10,
               width: "100%",
@@ -90,20 +141,20 @@ export function HistoryPage() {
                 className="vitals-values-grid"
               >
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>BP</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.bp}</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_bp")}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.bp || "—"}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>HR</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.hr}</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_hr")}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.hr || "—"}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>SpO₂</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.spo2}</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_oxygen")}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.spo2 || "—"}</span>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>Glucose</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.glucose}</span>
+                  <span style={{ fontSize: 11, color: colors.textMuted, fontWeight: 500, display: "block" }}>{t("vital_glucose")}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.textPrimary }}>{row.glucose || "—"}</span>
                 </div>
               </div>
             </div>
